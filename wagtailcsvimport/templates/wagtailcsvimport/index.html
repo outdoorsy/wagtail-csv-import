@@ -1,0 +1,14 @@
+{% extends "wagtailadmin/base.html" %}
+{% load i18n %}
+{% block titletag %}{% blocktrans %}CSV Import pages{% endblocktrans %}{% endblock %}
+{% block content %}
+    {% trans "CSV Import pages" as title_str %}
+    {% include "wagtailadmin/shared/header.html" with title=title_str icon="download" %}
+
+    <div class="nice-padding">
+        <ul>
+            <li><a href="{% url 'wagtailcsvimport_admin:import_from_file' %}">{% trans "Import from file" %}</a></li>
+            <li><a href="{% url 'wagtailcsvimport_admin:export_to_file' %}">{% trans "Export to file" %}</a></li>
+        </ul>
+    </div>
+{% endblock %}
