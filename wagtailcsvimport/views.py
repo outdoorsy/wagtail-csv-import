@@ -39,7 +39,7 @@ def import_from_file(request):
 
             try:
                 page_count = import_pages(import_data, parent_page)
-            except LookupError as e:
+            except Exception as e:
                 pprint(vars(e))
                 messages.error(request, _(
                     "Import failed: %(reason)s") % {'reason': e}
