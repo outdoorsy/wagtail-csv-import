@@ -1,10 +1,7 @@
 from pprint import pprint
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse
 from django.utils.translation import ungettext, ugettext_lazy as _
-
-import requests
 
 try:
     from wagtail.admin import messages
