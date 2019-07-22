@@ -1,0 +1,31 @@
+[
+    {
+    "model": "wagtailcore.site",
+    "pk": 1,
+    "fields": {
+        "hostname": "wagtailcsvimport.test",
+        "port": 80,
+        "site_name": "wagtailcsvimport Test Site",
+        "root_page": 1,
+        "is_default_site": true
+    }
+},
+{
+    "model": "auth.user",
+    "pk": 1,
+    "fields": {
+        "password": "pbkdf2_sha256$150000$zrITYOGEL0hz$8BYChunfBYw9aO52kvx8vtsSstI7RRMfZ2SL/WOWUN8=",
+        "last_login": null,
+        "is_superuser": true,
+        "username": "admin",
+        "first_name": "",
+        "last_name": "",
+        "email": "admin",
+        "is_staff": true,
+        "is_active": true,
+        "date_joined": "2019-07-20T04:55:49.933",
+        "groups": [],
+        "user_permissions": []
+    }
+}
+]

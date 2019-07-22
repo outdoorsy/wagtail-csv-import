@@ -7,11 +7,6 @@ from django.apps import apps
 from django.db import transaction
 from django.core.exceptions import ValidationError
 
-try:
-    from wagtail.core.models import Page
-except ImportError:  # fallback for Wagtail <2.0
-    from wagtail.wagtailcore.models import Page
-
 
 @transaction.atomic()
 def import_pages(import_data, parent_page):

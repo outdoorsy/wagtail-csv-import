@@ -2,25 +2,50 @@
 {% load i18n %}
 {% block titletag %}{% blocktrans %}Export pages{% endblocktrans %}{% endblock %}
 {% block content %}
-    {% trans "Export pages" as title_str %}
-    {% include "wagtailadmin/shared/header.html" with title=title_str icon="download" %}
+{% trans "Export pages" as title_str %}
+{% include "wagtailadmin/shared/header.html" with title=title_str icon="download" %}
 
     <div class="nice-padding">
+
+        <form action="{% url 'wagtailcsvimport_admin:export_to_file' %}" method="GET" novalidate>
+            <ul class="fields">
+                {% for field in page_type_form %}
+                    {% include "wagtailadmin/shared/field_as_li.html" %}
+                {% endfor %}
+            </ul>
+            <input type="submit" value="{% trans 'Change page type' %}" class="button">
+        </form>
+        {% if export_form %}
         <form action="{% url 'wagtailcsvimport_admin:export_to_file' %}" method="POST" novalidate>
             {% csrf_token %}
             <ul class="fields">
-                {% for field in form %}
+                {% for field in page_type_form %}
+                    {{ field.as_hidden }}
+                {% endfor %}
+                {% for field in export_form %}
                     {% include "wagtailadmin/shared/field_as_li.html" %}
                 {% endfor %}
             </ul>
 
             <input type="submit" value="{% trans 'Export' %}" class="button">
         </form>
+        {% endif %}
     </div>
+    {% endblock %}
+
+{% block extra_css %}
+    {{ block.super }}
+    <style type="text/css">
+     .checkbox_select_multiple label {
+         clear: both;
+         width: 33%;
+     }
+    </style>
 {% endblock %}
 
 {% block extra_js %}
     {{ block.super }}
     {% include "wagtailadmin/pages/_editor_js.html" %}
-    {{ form.media.js }}
+    {{ export_form.media.js }}
+    {{ page_type_form.media.js }}
 {% endblock %}

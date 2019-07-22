@@ -9,7 +9,7 @@ except ImportError:  # fallback for Wagtail <2.0
     from wagtail.wagtailadmin.menu import MenuItem
     from wagtail.wagtailcore import hooks
 
-from wagtailcsvimport import admin_urls
+from . import admin_urls
 
 
 @hooks.register('register_admin_urls')
