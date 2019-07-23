@@ -30,32 +30,22 @@ def import_from_file(request):
     tree to import defined what to import and the destination parent page
     defines where to import it to.
     """
+    successes = []
+    errors = []
     if request.method == 'POST':
         form = ImportFromFileForm(request.POST, request.FILES)
         if form.is_valid():
             import_data = form.cleaned_data['file'].read().decode('utf-8')
             parent_page = form.cleaned_data['parent_page']
-
-            try:
-                page_count = import_pages(import_data, parent_page)
-            except Exception as e:
-                pprint(vars(e))
-                messages.error(request, _(
-                    "Import failed: %(reason)s") % {'reason': e}
-                )
-            else:
-                messages.success(request, ungettext(
-                    "%(count)s page imported.",
-                    "%(count)s pages imported.",
-                    page_count) % {'count': page_count}
-                )
-            return redirect('wagtailadmin_explore', parent_page.pk)
+            successes, errors = import_pages(import_data, parent_page)
     else:
         form = ImportFromFileForm()
 
     return render(request, 'wagtailcsvimport/import_from_file.html', {
         'form': form,
         'request': request,
+        'successes': successes,
+        'errors': errors,
     })
 
 

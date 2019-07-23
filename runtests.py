@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import logging
 import os
 import sys
 
@@ -8,6 +9,7 @@ from django.test.utils import get_runner
 
 
 if __name__ == "__main__":
+    logging.disable(1000)
     os.environ['DJANGO_SETTINGS_MODULE'] = 'tests.settings'
     django.setup()
     TestRunner = get_runner(settings)
