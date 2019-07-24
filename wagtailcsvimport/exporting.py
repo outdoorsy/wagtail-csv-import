@@ -1,5 +1,6 @@
 import csv
 from functools import lru_cache
+from itertools import chain
 import logging
 
 try:
@@ -13,30 +14,43 @@ except ImportError:  # fallback for Wagtail <2.0
 logger = logging.getLogger(__name__)
 
 
-# Fields in Wagtail's Page model to export by default
-BASE_FIELDS = ['id', 'type', 'parent', 'title', 'slug', 'full_url',
-               'seo_title', 'search_description', 'live']
+# Put these fields first, in this order
+BASE_FIELDS_ORDER = ('id', 'content_type', 'parent', 'title', 'slug', 'full_url', 'live')
 
-FIELDS_TO_IGNORE = {'page_ptr'}
+# Fields in Wagtail's Page model to export by default
+GENERATED_FIELDS = {
+    '__all__': {
+        'content_type': lambda page: f'{page.content_type.app_label}.{page.content_type.model}',
+        'full_url': lambda page: page.full_url,
+        'parent': lambda page: getattr(page.get_parent(), 'pk'),
+    },
+    # TODO: support 'model': function()
+}
+
+# Fields that will never be exported
+FIELDS_TO_IGNORE = {
+    '__all__': {'content_type', 'depth', 'numchild', 'page_ptr', 'path', 'url_path'},
+    # TODO: support 'model': ['fields', 'to', 'exclude']
+}
 
 
 @lru_cache(64)
 def get_exportable_fields_for_model(page_model):
-    # always include Wagtail Page fields
-    fields = BASE_FIELDS[:]
-    # then include the page subclass' fields that are:
-    # - not present in Wagtail's Page model
-    # - not listed in FIELDS_TO_IGNORE
-    # - editable
-    # - not foreign key or M2M
-    fields_to_exclude = {f.name for f in Page._meta.fields}
-    fields_to_exclude.update(FIELDS_TO_IGNORE)
-    specific_fields = []
-    for f in page_model._meta.fields:
-        if f.name not in fields_to_exclude and f.editable and f.related_model is None:
-            specific_fields.append(f.name)
-    specific_fields.sort()
-    fields.extend(specific_fields)
+    fields = []
+    fields_to_exclude = FIELDS_TO_IGNORE['__all__']
+    for f in chain(page_model._meta.fields, page_model._meta.local_many_to_many):
+        if f.name not in fields_to_exclude:
+            fields.append(f.name)
+    # fields that don't exist on DB
+    fields.extend(GENERATED_FIELDS['__all__'].keys())
+    # sort fields, put common ones first, then the rest alphabetically
+    fields.sort()
+    def field_sort(item):
+        try:
+            return BASE_FIELDS_ORDER.index(item)
+        except ValueError:
+            return len(BASE_FIELDS_ORDER)
+    fields.sort(key=field_sort)
     return fields
 
 
@@ -88,7 +102,13 @@ def export_pages(root_page, content_type=None, fieldnames=None,
     # which is the purpose of the Echo class.
     pseudo_buffer = Echo()
 
-    if fieldnames is None:
+    if fieldnames:
+        # validate that there are no extraneous fields
+        all_exportable_fields = get_exportable_fields_for_model(page_model)
+        unrecognized_fields = set(fieldnames) - set(all_exportable_fields)
+        if unrecognized_fields:
+            raise ValueError("Don't recognize these fields: %r" % sorted(unrecognized_fields))
+    else:
         # default to all exportable fields for the given model
         fieldnames = get_exportable_fields_for_model(page_model)
 
@@ -96,17 +116,23 @@ def export_pages(root_page, content_type=None, fieldnames=None,
     header = dict(zip(fieldnames, fieldnames))
     yield csv_writer.writerow(header)
 
+    generated_fields = GENERATED_FIELDS['__all__']
     for (i, page) in enumerate(pages.iterator()):
         page_data = {}
-        for field in fieldnames:
-            if field == 'full_url':
-                page_data['full_url'] = page.full_url
-            elif field == 'parent':
-                parent = page.get_parent()
-                page_data['parent'] = parent.pk if parent is not None else ''
-            elif field == 'type':
-                ct = page.content_type
-                page_data['type'] = f'{ct.app_label}.{ct.model}'
+        for fieldname in fieldnames:
+            if fieldname in generated_fields:
+                page_data[fieldname] = generated_fields[fieldname](page)
             else:
-                page_data[field] = getattr(page, field)
+                field = page._meta.get_field(fieldname)
+                if field.many_to_many:
+                    # M2M, write comma-separated list of all related objects' ids
+                    related_objs = field.value_from_object(page)
+                    obj_ids = [str(obj.pk) for obj in related_objs]
+                    page_data[fieldname] = ','.join(obj_ids)
+                elif field.is_relation:
+                    # foreign key, write related object's id
+                    page_data[fieldname] = field.value_from_object(page)
+                else:
+                    # regular non-relation field
+                    page_data[fieldname] = field.value_from_object(page)
         yield csv_writer.writerow(page_data)

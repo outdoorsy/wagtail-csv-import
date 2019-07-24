@@ -27,9 +27,18 @@ class PageTypeForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        page_type_choices = [(ContentType.objects.get_for_model(p).id, p.get_verbose_name()) for p in get_page_models()]
+        page_type_choices = self.get_page_type_choices()
         self.fields['page_type'].choices = page_type_choices
-        self.fields['page_type'].initial = ContentType.objects.get_for_model(Page)
+        self.fields['page_type'].initial = page_type_choices[0][0]
+
+    @staticmethod
+    @lru_cache(1)
+    def get_page_type_choices():
+        choices = []
+        for m in get_page_models():
+            choice = (ContentType.objects.get_for_model(m).id, m.get_verbose_name())
+            choices.append(choice)
+        return choices
 
     def get_content_type(self):
         assert(not self._errors)  # must be called after is_valid()
@@ -72,14 +81,10 @@ class ExportForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
-        page_model = kwargs.pop('page_model', None)
+        page_model = kwargs.pop('page_model', Page)
         super().__init__(*args, **kwargs)
-        page_fields_choices = self.get_export_fields_choices(Page)
-        if page_model is None:
-            self.fields['fields'].choices = page_fields_choices
-        else:
-            self.fields['fields'].choices = self.get_export_fields_choices(page_model)
-        self.fields['fields'].initial = [c[0] for c in page_fields_choices]
+        self.fields['fields'].choices = self.get_export_fields_choices(page_model)
+        self.fields['fields'].initial = [c[0] for c in self.get_export_fields_choices(Page)]
 
     @staticmethod
     @lru_cache(64)
@@ -89,12 +94,12 @@ class ExportForm(forms.Form):
             page_model = Page
         exportable_fields = get_exportable_fields_for_model(page_model)
         for field_name in exportable_fields:
-            if field_name == 'full_url':
+            if field_name == 'content_type':
+                choices.append(('content_type', 'Page type'))
+            elif field_name == 'full_url':
                 choices.append(('full_url', 'URL'))
             elif field_name == 'parent':
                 choices.append(('parent', 'Parent page id'))
-            elif field_name == 'type':
-                choices.append(('type', 'Page type'))
             else:
                 field = page_model._meta.get_field(field_name)
                 choices.append((field_name, field.verbose_name))
