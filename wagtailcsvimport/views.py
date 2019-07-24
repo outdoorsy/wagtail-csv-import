@@ -23,25 +23,33 @@ def index(request):
 
 
 def import_from_file(request):
-    """
-    Bulk create new pages based on fields defined in a CSV file
+    """Import pages from a CSV file.
 
-    The source site's base url and the source page id of the point in the
-    tree to import defined what to import and the destination parent page
-    defines where to import it to.
+    The CSV format is compatible with the one that the CSV exporter
+    generates. This means it's possible to export pages to CSV, make
+    changes and then import the file to bulk update them.
+
+    Import is all-or-nothing. If there is at least one error then all
+    changes will be rolled back.
+
     """
     successes = []
     errors = []
     if request.method == 'POST':
         form = ImportFromFileForm(request.POST, request.FILES)
         if form.is_valid():
-            import_data = form.cleaned_data['file'].read().decode('utf-8')
-            parent_page = form.cleaned_data['parent_page']
-            successes, errors = import_pages(import_data, parent_page)
+            csv_file = form.cleaned_data['file'].read().decode('utf-8')
+            page_model = form.get_page_model()
+            successes, errors = import_pages(csv_file, page_model)
     else:
-        form = ImportFromFileForm()
+        form = ImportFromFileForm(request.GET)
+        if form.is_valid():
+            page_model = form.get_page_model()
+
+    csv_header_example = []
 
     return render(request, 'wagtailcsvimport/import_from_file.html', {
+        'csv_header_example': csv_header_example,
         'form': form,
         'request': request,
         'successes': successes,

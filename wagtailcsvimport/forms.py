@@ -54,14 +54,8 @@ class PageTypeForm(forms.Form):
             return content_type.model_class()
 
 
-class ImportFromFileForm(forms.Form):
+class ImportFromFileForm(PageTypeForm):
     file = forms.FileField(label=_("File to import"))
-    parent_page = forms.ModelChoiceField(
-        queryset=Page.objects.all(),
-        widget=AdminPageChooser(can_choose_root=True, user_perms='copy_to'),
-        label=_("Destination parent page"),
-        help_text=_("Imported pages will be created as children of this page.")
-    )
 
 
 class ExportForm(forms.Form):
