@@ -32,7 +32,6 @@ class PageTypeForm(forms.Form):
         self.fields['page_type'].initial = page_type_choices[0][0]
 
     @staticmethod
-    @lru_cache(1)
     def get_page_type_choices():
         choices = []
         for m in get_page_models():
@@ -46,15 +45,19 @@ class PageTypeForm(forms.Form):
         if content_type_id:
             content_type = ContentType.objects.get_for_id(content_type_id)
             return content_type
+        else:
+            return ContentType.objects.get_for_model(Page)
 
     def get_page_model(self):
         assert(not self._errors)  # must be called after is_valid()
         content_type = self.get_content_type()
         if content_type is not None:
             return content_type.model_class()
+        else:
+            return Page
 
 
-class ImportFromFileForm(PageTypeForm):
+class ImportForm(forms.Form):
     file = forms.FileField(label=_("File to import"))
 
 

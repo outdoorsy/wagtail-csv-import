@@ -1,28 +1,44 @@
 {% extends "wagtailadmin/base.html" %}
+
 {% load i18n %}
+
 {% block titletag %}{% blocktrans %}Import pages{% endblocktrans %}{% endblock %}
+
 {% block content %}
     {% trans "Import pages" as title_str %}
     {% include "wagtailadmin/shared/header.html" with title=title_str icon="download" %}
 
     <div class="nice-padding">
+        <form action="{% url 'wagtailcsvimport_admin:import_from_file' %}" method="GET" novalidate>
+            <ul class="fields">
+                {% for field in page_type_form %}
+                    {% include "wagtailadmin/shared/field_as_li.html" %}
+                {% endfor %}
+            </ul>
+        </form>
         <form action="{% url 'wagtailcsvimport_admin:import_from_file' %}" enctype="multipart/form-data" method="POST" novalidate>
             {% csrf_token %}
             <ul class="fields">
-                {% for field in form %}
+                {% for field in page_type_form %}
+                    {{ field.as_hidden }}
+                {% endfor %}
+                {% for field in import_form %}
                     {% include "wagtailadmin/shared/field_as_li.html" %}
                 {% endfor %}
             </ul>
 
-            <p>CSV header: {{ csv_header_example }}</p>
+            {% if csv_header_example %}
+            <p>These are all the fields accepted in the CSV header: <pre>{{ csv_header_example }}</pre></p>
+            {% endif %}
 
             <input type="submit" value="{% trans 'Import' %}" class="button">
         </form>
     </div>
-{% endblock %}
+    {% endblock %}
 
 {% block extra_js %}
     {{ block.super }}
     {% include "wagtailadmin/pages/_editor_js.html" %}
-    {{ form.media.js }}
-{% endblock %}
+    {{ import_form.media.js }}
+    {{ page_type_form.media.js }}
+ {% endblock %}

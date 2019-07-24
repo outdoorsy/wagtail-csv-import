@@ -1,5 +1,5 @@
 [
-    {
+{
     "model": "wagtailcore.site",
     "pk": 1,
     "fields": {
@@ -8,6 +8,40 @@
         "site_name": "wagtailcsvimport Test Site",
         "root_page": 1,
         "is_default_site": true
+    }
+},
+{
+    "model": "wagtailcore.page",
+    "pk": 1,
+    "fields": {
+        "path": "0001",
+        "depth": 1,
+        "numchild": 1,
+        "title": "Root",
+        "slug": "root",
+        "content_type": [
+            "wagtailcore",
+            "page"
+        ],
+        "live": true,
+        "url_path": "/"
+    }
+},
+{
+    "model": "wagtailcore.page",
+    "pk": 2,
+    "fields": {
+        "path": "00010001",
+        "depth": 2,
+        "numchild": 0,
+        "title": "Home",
+        "slug": "home",
+        "content_type": [
+            "wagtailcore",
+            "page"
+        ],
+        "live": true,
+        "url_path": "/home/"
     }
 },
 {

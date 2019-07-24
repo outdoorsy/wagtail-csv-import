@@ -12,8 +12,9 @@ except ImportError:  # fallback for Wagtail <2.0
     from wagtail.wagtailcore.models import Page
 
 from .exporting import export_pages
+from .exporting import get_exportable_fields_for_model
 from .forms import ExportForm
-from .forms import ImportFromFileForm
+from .forms import ImportForm
 from .forms import PageTypeForm
 from .importing import import_pages
 
@@ -35,22 +36,37 @@ def import_from_file(request):
     """
     successes = []
     errors = []
-    if request.method == 'POST':
-        form = ImportFromFileForm(request.POST, request.FILES)
-        if form.is_valid():
-            csv_file = form.cleaned_data['file'].read().decode('utf-8')
-            page_model = form.get_page_model()
-            successes, errors = import_pages(csv_file, page_model)
-    else:
-        form = ImportFromFileForm(request.GET)
-        if form.is_valid():
-            page_model = form.get_page_model()
+    csv_header_example = None
+    import_form = None
+    page_model = None
 
-    csv_header_example = []
+    if request.method == 'GET':
+        page_type_form = PageTypeForm(request.GET)
+        if page_type_form.is_valid():
+            page_model = page_type_form.get_page_model()
+            import_form = ImportForm()
+    elif request.method == 'POST':
+        page_type_form = PageTypeForm(request.POST)
+        if page_type_form.is_valid():
+            page_model = page_type_form.get_page_model()
+            import_form = ImportForm(request.POST, request.FILES)
+            if import_form.is_valid():
+                csv_file = import_form.cleaned_data['file'].read().decode('utf-8')
+                successes, errors = import_pages(csv_file.splitlines(), page_model)
+                return render(request, 'wagtailcsvimport/import_from_file_results.html', {
+                    'request': request,
+                    'successes': successes,
+                    'errors': errors,
+                })
+
+    if page_model:
+        all_fields = get_exportable_fields_for_model(page_model)
+        csv_header_example = ','.join(all_fields)
 
     return render(request, 'wagtailcsvimport/import_from_file.html', {
         'csv_header_example': csv_header_example,
-        'form': form,
+        'import_form': import_form,
+        'page_type_form': page_type_form,
         'request': request,
         'successes': successes,
         'errors': errors,
