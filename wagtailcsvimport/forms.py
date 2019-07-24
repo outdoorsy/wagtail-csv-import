@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from django import forms
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import ugettext_lazy as _
@@ -12,41 +14,22 @@ except ImportError:  # fallback for Wagtail <2.0
     from wagtail.wagtailcore.models import Page
 
 
-from .exporting import EXPORT_FIELDS_FOR_MODEL
-
-
-def calculate_export_fields_choices(page_model):
-    choices = []
-    if page_model is None:
-        page_model = Page
-    exportable_fields = EXPORT_FIELDS_FOR_MODEL[page_model]
-    for field_name in exportable_fields:
-        if field_name == 'full_url':
-            choices.append(('full_url', 'URL'))
-        elif field_name == 'parent':
-            choices.append(('parent', 'Parent page id'))
-        elif field_name == 'type':
-            choices.append(('type', 'Page type'))
-        else:
-            field = page_model._meta.get_field(field_name)
-            choices.append((field_name, field.verbose_name))
-    return choices
-
-
-DEFAULT_FIELDS_TO_EXPORT = calculate_export_fields_choices(Page)
-
-PAGE_TYPE_CHOICES = [
-    (ContentType.objects.get_for_model(p).id, p.get_verbose_name()) for p in get_page_models()
-]
+from .exporting import get_exportable_fields_for_model
 
 
 class PageTypeForm(forms.Form):
     page_type = forms.ChoiceField(
-        choices=PAGE_TYPE_CHOICES,
+        choices=[],  # populated on __init__
         required=False,
         label=_("Page type"),
         help_text=_("Will only export pages of this type, with all their extra information. If not set will export all pages of all types, but with minimal information.")
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        page_type_choices = [(ContentType.objects.get_for_model(p).id, p.get_verbose_name()) for p in get_page_models()]
+        self.fields['page_type'].choices = page_type_choices
+        self.fields['page_type'].initial = ContentType.objects.get_for_model(Page)
 
     def get_content_type(self):
         assert(not self._errors)  # must be called after is_valid()
@@ -75,8 +58,7 @@ class ImportFromFileForm(forms.Form):
 class ExportForm(forms.Form):
     fields = forms.MultipleChoiceField(
         label=_('Fields to export'),
-        choices=DEFAULT_FIELDS_TO_EXPORT,
-        initial=[choice[0] for choice in DEFAULT_FIELDS_TO_EXPORT],
+        choices=[],
         widget=forms.CheckboxSelectMultiple)
     only_published = forms.BooleanField(
         label=_('Include only published pages?'),
@@ -92,5 +74,28 @@ class ExportForm(forms.Form):
     def __init__(self, *args, **kwargs):
         page_model = kwargs.pop('page_model', None)
         super().__init__(*args, **kwargs)
-        if page_model is not None:
-            self.fields['fields'].choices = calculate_export_fields_choices(page_model)
+        page_fields_choices = self.get_export_fields_choices(Page)
+        if page_model is None:
+            self.fields['fields'].choices = page_fields_choices
+        else:
+            self.fields['fields'].choices = self.get_export_fields_choices(page_model)
+        self.fields['fields'].initial = [c[0] for c in page_fields_choices]
+
+    @staticmethod
+    @lru_cache(64)
+    def get_export_fields_choices(page_model):
+        choices = []
+        if page_model is None:
+            page_model = Page
+        exportable_fields = get_exportable_fields_for_model(page_model)
+        for field_name in exportable_fields:
+            if field_name == 'full_url':
+                choices.append(('full_url', 'URL'))
+            elif field_name == 'parent':
+                choices.append(('parent', 'Parent page id'))
+            elif field_name == 'type':
+                choices.append(('type', 'Page type'))
+            else:
+                field = page_model._meta.get_field(field_name)
+                choices.append((field_name, field.verbose_name))
+        return choices
