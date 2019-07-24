@@ -131,6 +131,22 @@ def check_csv_header(header_row, form_class):
     return True
 
 
+class CSVM2MField(forms.ModelMultipleChoiceField):
+    """Field to process M2M fields with comma-separated values
+
+    The default field that a ModelForm uses for a M2M field expects
+    input as a list of strings (e.g. [1, 2, 3]). This field expects a
+    string of comma-separated values (e.g. "1,2,3"), which is the
+    format used by the CSV exporter.
+
+    """
+
+    def prepare_value(self, value):
+        if isinstance(value, str):
+            return value.split(',')
+        return super().prepare_value(value)
+
+
 class PageModelForm(forms.ModelForm):
     live = forms.BooleanField(initial=False, required=False)
     parent = forms.ModelChoiceField(queryset=Page.objects.all(), required=True)
@@ -160,13 +176,14 @@ class PageModelForm(forms.ModelForm):
 
         if self.instance.pk:
             # update existing instance
-            page = super().save(commit=commit)
+            page = super().save(commit=True)
         else:
             # create new page under the given parent
             page = super().save(commit=False)
             page.live = False
             parent = self.cleaned_data['parent']
             parent.add_child(instance=page)
+            self.save_m2m()
 
         # Handle publishing/unpublishing the page depending on the
         # live field. If the page was just created, we handle it like
@@ -182,9 +199,12 @@ class PageModelForm(forms.ModelForm):
 
 def get_form_class(page_model, fields):
     """Build a ModelForm for the given page model."""
+    m2m_fields = page_model._meta.local_many_to_many
     model_form = forms.modelform_factory(
         page_model, form=PageModelForm,
-        fields=[f for f in fields if f not in IGNORED_FIELDS]
+        fields=[f for f in fields if f not in IGNORED_FIELDS],
+        # use custom form field for all M2M fields
+        field_classes={f.name: CSVM2MField for f in m2m_fields}
     )
     for field_name in NOT_REQUIRED_FIELDS:
         field = model_form.base_fields.get(field_name)

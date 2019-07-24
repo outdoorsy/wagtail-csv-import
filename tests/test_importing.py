@@ -95,10 +95,12 @@ class ImportingTests(TransactionTestCase):
         self.assertEqual(errors, [])
         page = M2MPage.objects.latest('id')
         self.assertEqual(page.get_parent().id, self.homepage.pk)
-        self.assertEqual(page.title, 'Page with FK')
+        self.assertEqual(page.title, 'Page with M2M')
         self.assertIsNone(page.fk)
-        self.assertQuerysetEqual(page.m2m.order_by('id'),
-                                 [simple_page_1, simple_page_2])
+        self.assertQuerysetEqual(
+            page.m2m.order_by('id'),
+            ['<SimplePage: Test Page>', '<SimplePage: Another Test Page>']
+        )
         # page is in draft because live was not specified
         self.assertIs(page.live, False)
 
