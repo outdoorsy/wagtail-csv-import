@@ -1,4 +1,5 @@
 import csv
+from functools import lru_cache
 import logging
 
 try:
@@ -19,6 +20,7 @@ BASE_FIELDS = ['id', 'type', 'parent', 'title', 'slug', 'full_url',
 FIELDS_TO_IGNORE = {'page_ptr'}
 
 
+@lru_cache(64)
 def get_exportable_fields_for_model(page_model):
     # always include Wagtail Page fields
     fields = BASE_FIELDS[:]

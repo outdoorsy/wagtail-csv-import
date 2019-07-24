@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from django import forms
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import ugettext_lazy as _
@@ -80,6 +82,7 @@ class ExportForm(forms.Form):
         self.fields['fields'].initial = [c[0] for c in page_fields_choices]
 
     @staticmethod
+    @lru_cache(64)
     def get_export_fields_choices(page_model):
         choices = []
         if page_model is None:
