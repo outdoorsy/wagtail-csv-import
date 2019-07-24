@@ -57,6 +57,4 @@ recreated. Follow this procedure:
 1. Make your changes to *tests/models.py*.
 1. Delete *tests/migrations/0001_initial.py*. There is no need to add
    more migrations, as they are only run on the transient test DB.
-1. Comment off the `wagtailcsvimport` entry in *tests/settings.py*.
-1. Run `python -m django makemigrations tests` from the project root.
-1. Revert the change to the *settings.py*.
+1. Run `DJANGO_SETTINGS_MODULE=tests.settings python -m django makemigrations tests` from the project root.

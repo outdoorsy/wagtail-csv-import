@@ -19,7 +19,7 @@ BASE_FIELDS = ['id', 'type', 'parent', 'title', 'slug', 'full_url',
 FIELDS_TO_IGNORE = {'page_ptr'}
 
 
-def calculate_fields_for_model(page_model):
+def get_exportable_fields_for_model(page_model):
     # always include Wagtail Page fields
     fields = BASE_FIELDS[:]
     # then include the page subclass' fields that are:
@@ -36,12 +36,6 @@ def calculate_fields_for_model(page_model):
     specific_fields.sort()
     fields.extend(specific_fields)
     return fields
-
-
-# This will contain a list of which fields to export for all available
-# page models. It's calculated at initialization because the page
-# models won't change at runtime.
-EXPORT_FIELDS_FOR_MODEL = {m: calculate_fields_for_model(m) for m in get_page_models()}
 
 
 class Echo:
@@ -94,7 +88,7 @@ def export_pages(root_page, content_type=None, fieldnames=None,
 
     if fieldnames is None:
         # default to all exportable fields for the given model
-        fieldnames = EXPORT_FIELDS_FOR_MODEL[page_model]
+        fieldnames = get_exportable_fields_for_model(page_model)
 
     csv_writer = csv.DictWriter(pseudo_buffer, fieldnames=fieldnames)
     header = dict(zip(fieldnames, fieldnames))
