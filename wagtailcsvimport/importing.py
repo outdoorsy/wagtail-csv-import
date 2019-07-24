@@ -9,14 +9,28 @@ from django.db import transaction
 from wagtail.admin.rich_text.editors.draftail import DraftailRichTextArea
 from wagtail.core.models import Page
 
+from .exporting import get_exportable_fields_for_model
+
 
 logger = logging.getLogger(__name__)
 
 
 IGNORED_FIELDS = {'content_type', 'depth', 'full_url', 'live',
-                  'numchild', 'page_ptr', 'path', 'type', 'url_path'}
-SPECIAL_PROCESS_FIELDS = {'id', 'full_url', 'live', 'type'}
-NOT_REQUIRED_FIELDS = ['slug']
+                  'numchild', 'page_ptr', 'path', 'url_path'}
+SPECIAL_PROCESS_FIELDS = {'full_url', 'live', 'content_type'}
+NOT_REQUIRED_FIELDS = ['parent', 'slug']
+
+
+class Error:
+    def __init__(self, msg, value):
+        self.msg = msg
+        self.value = value
+
+    def __str__(self):
+        return f'{self.msg}: {self.value!s}'
+
+    def __repr__(self):
+        return f'Error({self})'
 
 
 def import_pages(csv_file, page_model):
@@ -26,9 +40,9 @@ def import_pages(csv_file, page_model):
     exporting.export_pages. Generated fields such as full_url will
     just be ignored.
 
-    If the CSV has a "type" column it will be checked that it matches
-    the right value for the given page_model, otherwise the row will
-    fail with a ValidationError.
+    If the CSV has a "content_type" column it will be checked that it
+    matches the right value for the given page_model, otherwise the
+    row will fail with a ValidationError.
 
     """
     reader = csv.DictReader(csv_file)
@@ -38,13 +52,12 @@ def import_pages(csv_file, page_model):
     try:
         form_class = get_form_class(page_model, reader.fieldnames)
     except FieldError as e:
-        errors.append(f'Error in CSV header: {e}')
+        errors.append(Error('Error in CSV header', e))
         return successes, errors
 
-    try:
-        check_csv_header(reader.fieldnames, form_class)
-    except ValidationError as e:
-        errors.append(e.message)
+    error_msg = check_csv_header(reader.fieldnames, page_model, form_class)
+    if error_msg:
+        errors.append(Error('Error in CSV header', error_msg))
         return successes, errors
 
     # transaction will only commit if there are no errors
@@ -52,7 +65,7 @@ def import_pages(csv_file, page_model):
 
     try:
         for i, row in enumerate(reader, start=1):
-            page_id = row.get('id')
+            page_id = row.pop('id')
             if page_id:
                 # update existing page
                 page = page_model.objects.get(pk=page_id)
@@ -66,7 +79,8 @@ def import_pages(csv_file, page_model):
                 except ValidationError as e:
                     logger.info('Validation errors importing row %s: %r',
                                 i, e.message_dict)
-                    errors.append(f'Errors processing row number {i}: {e.message_dict!r}')
+                    errors.append(Error(f'Errors processing row number {i}',
+                                        e.message_dict))
                 else:
                     if page_id:
                         logger.info('Updated page "%s" with id %d',
@@ -78,12 +92,13 @@ def import_pages(csv_file, page_model):
                         successes.append(f'Created page {new_page.title}')
             else:
                 logger.info('Error importing row number %s: %r', i, form.errors)
-                errors.append(f'Errors processing row number {i}: {form.errors!r}')
+                errors.append(Error(f'Errors processing row number {i}',
+                                    form.errors.as_data()))
     except Exception as e:
         # something unexpected happened, tell the user and make sure
         # we rollback the transaction
         logger.exception('Exception importing CSV file')
-        errors.append(f'Exception importing row number {i}: {e!r}')
+        errors.append(Error(f'Irrecoverable exception importing row number {i}', e))
 
     if errors:
         transaction.rollback()
@@ -93,7 +108,7 @@ def import_pages(csv_file, page_model):
     return successes, errors
 
 
-def check_csv_header(header_row, form_class):
+def check_csv_header(header_row, page_model, form_class):
     """Validate that the fields in the header row are correct.
 
     Particularly this makes sure that the header has all required
@@ -105,16 +120,12 @@ def check_csv_header(header_row, form_class):
     In case of any error a ValidationError will be raised.
 
     """
+    # detect unrecognized fields
     header_fields = set(header_row)
-    form_fields = form_class.base_fields.keys()
-
-    # check there are no extraneous fields
-    unrecognized_fields = header_fields - form_fields - SPECIAL_PROCESS_FIELDS
+    all_valid_fields = set(get_exportable_fields_for_model(page_model))
+    unrecognized_fields = header_fields - all_valid_fields
     if unrecognized_fields:
-        raise ValidationError(
-            'CSV header has unrecognized fields: '
-            '%r' % sorted(unrecognized_fields)
-        )
+        return 'Unrecognized fields: %s' % sorted(unrecognized_fields)
 
     # check all required fields are accounted for
     required_fields = set()
@@ -123,12 +134,8 @@ def check_csv_header(header_row, form_class):
             required_fields.add(field_name)
     missing_required_fields = required_fields - header_fields
     if missing_required_fields:
-        raise ValidationError(
-            'CSV header is missing the following required fields: '
-            '%r' % sorted(missing_required_fields)
-        )
-
-    return True
+        return ('Missing the following required fields: '
+                '%s' % sorted(missing_required_fields))
 
 
 class CSVM2MField(forms.ModelMultipleChoiceField):
@@ -148,9 +155,23 @@ class CSVM2MField(forms.ModelMultipleChoiceField):
 
 
 class PageModelForm(forms.ModelForm):
+    content_type = forms.CharField(required=False)
     live = forms.BooleanField(initial=False, required=False)
     parent = forms.ModelChoiceField(queryset=Page.objects.all(), required=True)
-    type = forms.CharField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            # parent is not necessary when updating an instance
+            self.fields['parent'].required = False
+
+    def clean_content_type(self):
+        # type field is present in exporter CSV, if present we just
+        # want to make sure it matches the type of the page model
+        value = self.cleaned_data.get('content_type')
+        model_string = f'{self.instance._meta.app_label}.{self.instance._meta.model_name}'
+        if value and value != model_string:
+            raise ValidationError(f"Expected {model_string}, was {value}")
 
     def clean_live(self):
         # live field is not going to be manipulated directly, instead
@@ -163,13 +184,19 @@ class PageModelForm(forms.ModelForm):
         elif not previously_live and self.cleaned_data['live'] is True:
             self.cleaned_data['_publish_page'] = True
 
-    def clean_type(self):
-        # type field is present in exporter CSV, if present we just
-        # want to make sure it matches the type of the page model
-        value = self.cleaned_data.get('type')
-        model_string = f'{self.instance._meta.app_label}.{self.instance._meta.model_name}'
-        if value and value != model_string:
-            raise ValidationError(f"type should be {model_string}, is {value}")
+    def clean_parent(self):
+        # TODO: add support to update parent of existing pages,
+        # i.e. to move them. Until then raise an error if parent
+        # changes.
+        value = self.cleaned_data['parent']
+        if self.instance.pk:
+            parent = self.instance.get_parent()
+            if value and parent != value:
+                raise ValidationError('Cannot change parent page, moving pages is not yet supported.')
+        else:
+            if not value:
+                raise ValidationError('Need a parent when creating a new page')
+        return value
 
     def save(self, commit=True):
         previously_live = self.instance.live
@@ -177,6 +204,7 @@ class PageModelForm(forms.ModelForm):
         if self.instance.pk:
             # update existing instance
             page = super().save(commit=True)
+            # TODO: move page if parent value has changed
         else:
             # create new page under the given parent
             page = super().save(commit=False)
@@ -199,10 +227,12 @@ class PageModelForm(forms.ModelForm):
 
 def get_form_class(page_model, fields):
     """Build a ModelForm for the given page model."""
+    ignored_fields = {f.name for f in page_model._meta.fields if not f.editable}
+    ignored_fields.update(IGNORED_FIELDS)
     m2m_fields = page_model._meta.local_many_to_many
     model_form = forms.modelform_factory(
         page_model, form=PageModelForm,
-        fields=[f for f in fields if f not in IGNORED_FIELDS],
+        fields=[f for f in fields if f not in ignored_fields],
         # use custom form field for all M2M fields
         field_classes={f.name: CSVM2MField for f in m2m_fields}
     )
