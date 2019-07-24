@@ -51,7 +51,10 @@ class ImportingTests(TransactionTestCase):
         )
 
     def test_create_cannot_set_excluded_fields(self):
-        csv_data = StringIO(f'id,parent,title,content_type,depth,numchild,page_ptr,path,url_path,int_field\r\n,{self.home.pk},Test page,42,3,7,{self.home.pk},000100010001,/home/wrong-path,42\r\n')
+        csv_data = StringIO(
+            'id,parent,title,content_type,depth,numchild,page_ptr,path,url_path,int_field\r\n'
+            f',{self.home.pk},Test page,42,3,7,{self.home.pk},000100010001,/home/wrong-path,42\r\n'
+        )
         successes, errors = import_pages(csv_data, SimplePage)
         self.assertEqual(successes, [])
         self.assertEqual(
@@ -66,7 +69,10 @@ class ImportingTests(TransactionTestCase):
         )
         self.home.add_child(instance=simple_page)
 
-        csv_data = StringIO(f'id,parent,title,fk\r\n,{self.home.pk},Page with FK,{simple_page.pk}\r\n')
+        csv_data = StringIO(
+            'id,parent,title,fk\r\n'
+            f',{self.home.pk},Page with FK,{simple_page.pk}\r\n'
+        )
         successes, errors = import_pages(csv_data, M2MPage)
         self.assertEqual(successes, ['Created page Page with FK'], f'Errors: {errors}')
         self.assertEqual(errors, [])
@@ -90,7 +96,10 @@ class ImportingTests(TransactionTestCase):
         self.home.add_child(instance=simple_page_1)
         self.home.add_child(instance=simple_page_2)
 
-        csv_data = StringIO(f'id,parent,title,m2m\r\n,{self.home.pk},Page with M2M,"{simple_page_1.pk},{simple_page_2.pk}"\r\n')
+        csv_data = StringIO(
+            'id,parent,title,m2m\r\n'
+            f',{self.home.pk},Page with M2M,"{simple_page_1.pk},{simple_page_2.pk}"\r\n'
+        )
         successes, errors = import_pages(csv_data, M2MPage)
         self.assertEqual(successes, ['Created page Page with M2M'], f'Errors: {errors}')
         self.assertEqual(errors, [])
@@ -106,7 +115,10 @@ class ImportingTests(TransactionTestCase):
         self.assertIs(page.live, False)
 
     def test_create_error_missing_parent_field(self):
-        csv_data = StringIO('id,title,int_field\r\n,Orphan,42\r\n')
+        csv_data = StringIO(
+            'id,title,int_field\r\n'
+            ',Orphan,42\r\n'
+        )
         successes, errors = import_pages(csv_data, SimplePage)
         self.assertEqual(successes, [])
         self.assertEqual(
@@ -114,7 +126,10 @@ class ImportingTests(TransactionTestCase):
             ["Error(Errors processing row number 1: {'parent': [ValidationError(['Need a parent when creating a new page'])]})"])
 
     def test_create_error_type_field_doesnt_match_page_model(self):
-        csv_data = StringIO(f'id,content_type,parent,title,int_field\r\n,tests.m2mpage,{self.home.pk},Wrong type,42\r\n')
+        csv_data = StringIO(
+            'id,content_type,parent,title,int_field\r\n'
+            f',tests.m2mpage,{self.home.pk},Wrong type,42\r\n'
+        )
         successes, errors = import_pages(csv_data, SimplePage)
         self.assertEqual(successes, [])
         self.assertEqual(
@@ -123,7 +138,10 @@ class ImportingTests(TransactionTestCase):
         )
 
     def test_create_error_unrecognized_field(self):
-        csv_data = StringIO('id,title,int_field,wrong_field\r\n,Orphan,42,blah\r\n')
+        csv_data = StringIO(
+            'id,title,int_field,wrong_field\r\n'
+            ',Orphan,42,blah\r\n'
+        )
         successes, errors = import_pages(csv_data, SimplePage)
         self.assertEqual(successes, [])
         self.assertEqual(
@@ -132,7 +150,10 @@ class ImportingTests(TransactionTestCase):
         )
 
     def test_create_simple_page_all_fields(self):
-        csv_data = StringIO(f'id,content_type,parent,title,slug,full_url,seo_title,search_description,live,bool_field,char_field,int_field,rich_text_field\r\n,tests.simplepage,{self.home.pk},Test page,slug-life,http://localhost/test-page/,SEO title,SEO desc,False,False,char,42,<p>Rich text</p>\r\n')
+        csv_data = StringIO(
+            'id,content_type,parent,title,slug,full_url,seo_title,search_description,live,bool_field,char_field,int_field,rich_text_field\r\n'
+            f',tests.simplepage,{self.home.pk},Test page,slug-life,http://localhost/test-page/,SEO title,SEO desc,False,False,char,42,<p>Rich text</p>\r\n'
+        )
         successes, errors = import_pages(csv_data, SimplePage)
         self.assertEqual(successes, ['Created page Test page'], f'Errors: {errors}')
         self.assertEqual(errors, [])
@@ -149,7 +170,10 @@ class ImportingTests(TransactionTestCase):
         self.assertEqual(page.rich_text_field, '<p>Rich text</p>')
 
     def test_create_simple_page_minimum_required_fields(self):
-        csv_data = StringIO(f'id,parent,title,int_field\r\n,{self.home.pk},A simple page for a simple test,27\r\n')
+        csv_data = StringIO(
+            'id,parent,title,int_field\r\n'
+            f',{self.home.pk},A simple page for a simple test,27\r\n'
+        )
         successes, errors = import_pages(csv_data, SimplePage)
         self.assertEqual(successes, ['Created page A simple page for a simple test'], f'Errors: {errors}')
         self.assertEqual(errors, [])
@@ -169,7 +193,10 @@ class ImportingTests(TransactionTestCase):
         self.assertIs(page.live, False)
 
     def test_create_simple_page_unicode_text(self):
-        csv_data = StringIO(f'id,parent,title,seo_title,int_field,rich_text_field\r\n,{self.home.pk},日本語,漢語,42,<p> </p>\r\n')
+        csv_data = StringIO(
+            'id,parent,title,seo_title,int_field,rich_text_field\r\n'
+            f',{self.home.pk},日本語,漢語,42,<p> </p>\r\n'
+        )
         successes, errors = import_pages(csv_data, SimplePage)
         self.assertEqual(successes, ['Created page 日本語'], f'Errors: {errors}')
         self.assertEqual(errors, [])
@@ -186,7 +213,10 @@ class ImportingTests(TransactionTestCase):
         )
         self.home.add_child(instance=page)
 
-        csv_data = StringIO(f'id,locked\r\n{page.pk},True\r\n')
+        csv_data = StringIO(
+            'id,locked\r\n'
+            f'{page.pk},True\r\n'
+        )
         successes, errors = import_pages(csv_data, Page)
         self.assertEqual(successes, ['Updated page Test Page'], f'Errors: {errors}')
         self.assertEqual(errors, [])
@@ -201,7 +231,10 @@ class ImportingTests(TransactionTestCase):
         )
         self.home.add_child(instance=page)
 
-        csv_data = StringIO(f'id,parent\r\n{page.pk},{self.root.pk}\r\n')
+        csv_data = StringIO(
+            'id,parent\r\n'
+            f'{page.pk},{self.root.pk}\r\n'
+        )
         successes, errors = import_pages(csv_data, Page)
         self.assertEqual(successes, [])
         self.assertEqual(
@@ -222,7 +255,10 @@ class ImportingTests(TransactionTestCase):
         )
         self.home.add_child(instance=page)
 
-        csv_data = StringIO(f'id,title,seo_title,int_field,rich_text_field\r\n{page.pk},A New Title,Now THIS is SEO,27,<p>Anything by Ted Chiang really</p>\r\n')
+        csv_data = StringIO(
+            'id,title,seo_title,int_field,rich_text_field\r\n'
+            f'{page.pk},A New Title,Now THIS is SEO,27,<p>Anything by Ted Chiang really</p>\r\n'
+        )
         successes, errors = import_pages(csv_data, SimplePage)
         self.assertEqual(successes, ['Updated page A New Title'], f'Errors: {errors}')
         self.assertEqual(errors, [])
@@ -249,7 +285,10 @@ class ImportingTests(TransactionTestCase):
         )
         self.home.add_child(instance=page)
 
-        csv_data = StringIO(f'id,live\r\n{page.pk},True\r\n')
+        csv_data = StringIO(
+            'id,live\r\n'
+            f'{page.pk},True\r\n'
+        )
         successes, errors = import_pages(csv_data, SimplePage)
         self.assertEqual(successes, ['Updated page Test Page'], f'Errors: {errors}')
         self.assertEqual(errors, [])
@@ -269,7 +308,10 @@ class ImportingTests(TransactionTestCase):
         rev = page.save_revision()
         rev.publish()
 
-        csv_data = StringIO(f'id,live\r\n{page.pk},False\r\n')
+        csv_data = StringIO(
+            'id,live\r\n'
+            f'{page.pk},False\r\n'
+        )
         successes, errors = import_pages(csv_data, SimplePage)
         self.assertEqual(successes, ['Updated page Test Page'], f'Errors: {errors}')
         self.assertEqual(errors, [])
@@ -280,7 +322,10 @@ class ImportingTests(TransactionTestCase):
 
     def test_wagtail_model_validation_errors(self):
         """Test validation errors generated by Page models clean() and full_clean()"""
-        csv_data = StringIO(f'id,parent,title,slug\r\n,{self.root.pk},Another Home,home\r\n')
+        csv_data = StringIO(
+            'id,parent,title,slug\r\n'
+            f',{self.root.pk},Another Home,home\r\n'
+        )
         successes, errors = import_pages(csv_data, Page)
         self.assertEqual(successes, [])
         self.assertEqual(
