@@ -42,7 +42,8 @@ To run the tests you will need an appropriate Python version (3.6 or
 use *tox*.
 
 If you have a virtualenv with Django and wagtail you should be able to
-just run `./runtests.py`.
+just run `./runtests.py`. You can specify which tests to run, for
+example: `./runtests.py tests.test_exporting`.
 
 If you have tox installed you can run `tox`. This will create multiple
 environments with different dependencies and test the project in each

@@ -18,6 +18,10 @@ class M2MPage(Page):
                            related_name='+', on_delete=models.PROTECT)
     m2m = models.ManyToManyField(SimplePage, related_name='+')
 
+    class Meta:
+        verbose_name = 'M2M page'
+        verbose_name_plural = 'M2M pages'
+
 
 class NotAPage(models.Model):
     """Model that is not a Wagtail Page"""

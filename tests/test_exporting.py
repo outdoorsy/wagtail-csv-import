@@ -4,6 +4,7 @@ from django.test import TestCase
 from wagtail.core.models import Page
 
 from wagtailcsvimport.exporting import export_pages
+from wagtailcsvimport.exporting import get_exportable_fields_for_model
 
 from tests.models import M2MPage
 from tests.models import SimplePage
@@ -29,18 +30,38 @@ class ExportingTests(TestCase):
         else:
             self.fail(f"Iterator has less items than expected. First missing item: {missing_item!r}")
 
-    def test_export_ignores_foreign_keys_and_m2m(self):
-        page = M2MPage(title='Complex Page', live=True)
-        home = Page.objects.get(pk=2)
-        home.add_child(instance=page)
-        ct = ContentType.objects.get_for_model(M2MPage)
+    def test_export_error_if_unrecognized_fields(self):
+        ct = ContentType.objects.get_for_model(SimplePage)
+        home = Page.objects.get(slug='home')
+        with self.assertRaisesMessage(ValueError, "Don't recognize these fields: ['wrong_field']"):
+            next(export_pages(home, content_type=ct, fieldnames=['id', 'content_type', 'int_field', 'wrong_field']))
 
-        row_iter = export_pages(page, content_type=ct)
+    def test_export_foreign_key_and_m2m(self):
+        simple_page_1 = SimplePage(
+            title='Simple page 1',
+            int_field=27
+        )
+        simple_page_2 = SimplePage(
+            title='Simple page 2',
+            int_field=42
+        )
+        home = Page.objects.get(slug='home')
+        home.add_child(instance=simple_page_1)
+        home.add_child(instance=simple_page_2)
+        m2m_page = M2MPage(
+            title='Test page',
+            fk=simple_page_1
+        )
+        home.add_child(instance=m2m_page)
+        m2m_page.m2m.add(simple_page_1, simple_page_2)
+
+        ct = ContentType.objects.get_for_model(M2MPage)
+        row_iter = export_pages(home, content_type=ct, fieldnames=['id', 'content_type', 'fk', 'm2m'])
         self.assertIteratorEquals(
             row_iter,
             [
-                'id,type,parent,title,slug,full_url,seo_title,search_description,live\r\n',
-                '3,tests.m2mpage,2,Complex Page,complex-page,http://localhost/complex-page/,,,True\r\n',
+                'id,content_type,fk,m2m\r\n',
+                f'5,tests.m2mpage,{simple_page_1.pk},"{simple_page_1.pk},{simple_page_2.pk}"\r\n',
             ]
         )
 
@@ -68,13 +89,13 @@ class ExportingTests(TestCase):
         home.add_child(instance=page1)
         home.add_child(instance=page2)
 
-        row_iter = export_pages(home, only_published=True)
+        row_iter = export_pages(home, fieldnames=['id'], only_published=True)
         self.assertIteratorEquals(
             row_iter,
             [
-                'id,type,parent,title,slug,full_url,seo_title,search_description,live\r\n',
-                '2,wagtailcore.page,1,Welcome to your new Wagtail site!,home,http://localhost/,,,True\r\n',
-                '3,tests.simplepage,2,Test page,test-page,http://localhost/test-page/,,,True\r\n',
+                'id\r\n',
+                '2\r\n',
+                '3\r\n',
             ]
         )
 
@@ -87,29 +108,23 @@ class ExportingTests(TestCase):
             title='Test page',
             live=True
         )
-        page2 = SimplePage(
-            bool_field=True,
-            char_field='almendras',
-            int_field=27,
-            rich_text_field='',
-            title='Another test page',
-            slug='custom-slug',
-            seo_title='SEO title',
-            search_description='SEO description',
-            live=True
-        )
         home = Page.objects.get(pk=2)
         home.add_child(instance=page1)
+        page2 = M2MPage(
+            title='M2M page',
+            fk=page1,
+            live=True
+        )
         home.add_child(instance=page2)
 
         row_iter = export_pages(home)
         self.assertIteratorEquals(
             row_iter,
             [
-                'id,type,parent,title,slug,full_url,seo_title,search_description,live\r\n',
-                '2,wagtailcore.page,1,Welcome to your new Wagtail site!,home,http://localhost/,,,True\r\n',
-                '3,tests.simplepage,2,Test page,test-page,http://localhost/test-page/,,,True\r\n',
-                '4,tests.simplepage,2,Another test page,custom-slug,http://localhost/custom-slug/,SEO title,SEO description,True\r\n',
+                'id,content_type,parent,title,slug,full_url,live,draft_title,expire_at,expired,first_published_at,go_live_at,has_unpublished_changes,last_published_at,latest_revision_created_at,live_revision,locked,owner,search_description,seo_title,show_in_menus\r\n',
+                '2,wagtailcore.page,1,Welcome to your new Wagtail site!,home,http://localhost/,True,Welcome to your new Wagtail site!,,False,,,False,,,,False,,,,False\r\n',
+                '3,tests.simplepage,2,Test page,test-page,http://localhost/test-page/,True,Test page,,False,,,False,,,,False,,,,False\r\n',
+                '4,tests.m2mpage,2,M2M page,m2m-page,http://localhost/m2m-page/,True,M2M page,,False,,,False,,,,False,,,,False\r\n',
             ]
         )
 
@@ -142,8 +157,101 @@ class ExportingTests(TestCase):
         self.assertIteratorEquals(
             row_iter,
             [
-                'id,type,parent,title,slug,full_url,seo_title,search_description,live,bool_field,char_field,int_field,rich_text_field\r\n',
-                '3,tests.simplepage,2,Test page,test-page,http://localhost/test-page/,,,True,False,char,42,<p>Rich text</p>\r\n',
-                '4,tests.simplepage,2,Another test page,custom-slug,http://localhost/custom-slug/,SEO title,SEO description,True,True,almendras,27,\r\n'
+                'id,content_type,parent,title,slug,full_url,live,bool_field,char_field,draft_title,expire_at,expired,first_published_at,go_live_at,has_unpublished_changes,int_field,last_published_at,latest_revision_created_at,live_revision,locked,owner,rich_text_field,search_description,seo_title,show_in_menus\r\n',
+                '3,tests.simplepage,2,Test page,test-page,http://localhost/test-page/,True,False,char,Test page,,False,,,False,42,,,,False,,<p>Rich text</p>,,,False\r\n',
+                '4,tests.simplepage,2,Another test page,custom-slug,http://localhost/custom-slug/,True,True,almendras,Another test page,,False,,,False,27,,,,False,,,SEO description,SEO title,False\r\n',
+            ]
+        )
+
+    def test_get_exportable_fields_for_model_m2mpage(self):
+        exportable_fields = get_exportable_fields_for_model(M2MPage)
+        self.assertEqual(
+            exportable_fields,
+            [
+                'id',
+                'content_type',
+                'parent',
+                'title',
+                'slug',
+                'full_url',
+                'live',
+                'draft_title',
+                'expire_at',
+                'expired',
+                'first_published_at',
+                'fk',
+                'go_live_at',
+                'has_unpublished_changes',
+                'last_published_at',
+                'latest_revision_created_at',
+                'live_revision',
+                'locked',
+                'm2m',
+                'owner',
+                'search_description',
+                'seo_title',
+                'show_in_menus',
+            ]
+        )
+
+    def test_get_exportable_fields_for_model_simplepage(self):
+        exportable_fields = get_exportable_fields_for_model(SimplePage)
+        self.assertEqual(
+            exportable_fields,
+            [
+                'id',
+                'content_type',
+                'parent',
+                'title',
+                'slug',
+                'full_url',
+                'live',
+                'bool_field',
+                'char_field',
+                'draft_title',
+                'expire_at',
+                'expired',
+                'first_published_at',
+                'go_live_at',
+                'has_unpublished_changes',
+                'int_field',
+                'last_published_at',
+                'latest_revision_created_at',
+                'live_revision',
+                'locked',
+                'owner',
+                'rich_text_field',
+                'search_description',
+                'seo_title',
+                'show_in_menus',
+            ]
+        )
+
+    def test_get_exportable_fields_for_model_wagtail_page(self):
+        exportable_fields = get_exportable_fields_for_model(Page)
+        self.assertEqual(
+            exportable_fields,
+            [
+                'id',
+                'content_type',
+                'parent',
+                'title',
+                'slug',
+                'full_url',
+                'live',
+                'draft_title',
+                'expire_at',
+                'expired',
+                'first_published_at',
+                'go_live_at',
+                'has_unpublished_changes',
+                'last_published_at',
+                'latest_revision_created_at',
+                'live_revision',
+                'locked',
+                'owner',
+                'search_description',
+                'seo_title',
+                'show_in_menus',
             ]
         )
