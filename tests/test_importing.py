@@ -56,6 +56,52 @@ class ImportingTests(TransactionTestCase):
         self.assertEqual(successes, [])
         self.assertEqual(errors, ["CSV header has unrecognized fields: ['content_type', 'depth', 'numchild', 'page_ptr', 'path', 'url_path']"])
 
+    def test_create_complex_page_with_foreign_key(self):
+        simple_page = SimplePage(
+            title='Test Page',
+            int_field=42,
+        )
+        parent = Page.objects.get(slug='home')
+        parent.add_child(instance=simple_page)
+
+        csv_data = StringIO(f'id,parent,title,fk\r\n,{self.homepage.pk},Page with FK,{simple_page.pk}\r\n')
+        successes, errors = import_pages(csv_data, M2MPage)
+        self.assertEqual(successes, ['Created page Page with FK'], f'Errors: {errors}')
+        self.assertEqual(errors, [])
+        page = M2MPage.objects.latest('id')
+        self.assertEqual(page.get_parent().id, self.homepage.pk)
+        self.assertEqual(page.title, 'Page with FK')
+        self.assertEqual(page.fk, simple_page)
+        self.assertQuerysetEqual(page.m2m.all(), [])
+        # page is in draft because live was not specified
+        self.assertIs(page.live, False)
+
+    def test_create_complex_page_with_m2m(self):
+        simple_page_1 = SimplePage(
+            title='Test Page',
+            int_field=42,
+        )
+        simple_page_2 = SimplePage(
+            title='Another Test Page',
+            int_field=27,
+        )
+        parent = Page.objects.get(slug='home')
+        parent.add_child(instance=simple_page_1)
+        parent.add_child(instance=simple_page_2)
+
+        csv_data = StringIO(f'id,parent,title,m2m\r\n,{self.homepage.pk},Page with M2M,"{simple_page_1.pk},{simple_page_2.pk}"\r\n')
+        successes, errors = import_pages(csv_data, M2MPage)
+        self.assertEqual(successes, ['Created page Page with M2M'], f'Errors: {errors}')
+        self.assertEqual(errors, [])
+        page = M2MPage.objects.latest('id')
+        self.assertEqual(page.get_parent().id, self.homepage.pk)
+        self.assertEqual(page.title, 'Page with FK')
+        self.assertIsNone(page.fk)
+        self.assertQuerysetEqual(page.m2m.order_by('id'),
+                                 [simple_page_1, simple_page_2])
+        # page is in draft because live was not specified
+        self.assertIs(page.live, False)
+
     def test_create_error_missing_parent_field(self):
         csv_data = StringIO('id,title,int_field\r\n,Orphan,42\r\n')
         successes, errors = import_pages(csv_data, SimplePage)
@@ -121,6 +167,9 @@ class ImportingTests(TransactionTestCase):
         self.assertEqual(page.title, '日本語')
         self.assertEqual(page.seo_title, '漢語')
         self.assertEqual(page.rich_text_field, '<p> </p>')
+
+    def test_non_editable_fields_are_silently_ignored(self):
+        self.fail('Write test')
 
     def test_update_simple_page(self):
         page = SimplePage(
