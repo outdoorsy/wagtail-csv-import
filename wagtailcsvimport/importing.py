@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 IGNORED_FIELDS = {'content_type', 'depth', 'full_url', 'live',
                   'numchild', 'page_ptr', 'path', 'url_path'}
-SPECIAL_PROCESS_FIELDS = {'full_url', 'live', 'content_type'}
 NOT_REQUIRED_FIELDS = ['parent', 'slug']
 
 
