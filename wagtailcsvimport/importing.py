@@ -17,8 +17,8 @@ from .exporting import get_exportable_fields_for_model
 logger = logging.getLogger(__name__)
 
 
-IGNORED_FIELDS = {'content_type', 'depth', 'full_url', 'live',
-                  'numchild', 'page_ptr', 'path', 'url_path'}
+IGNORED_FIELDS = {'content_type', 'depth', 'first_published_at', 'full_url',
+                  'live', 'numchild', 'page_ptr', 'path', 'url_path'}
 NOT_REQUIRED_FIELDS = ['parent', 'slug']
 
 
