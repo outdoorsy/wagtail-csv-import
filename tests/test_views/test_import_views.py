@@ -40,7 +40,9 @@ class ImportViewTests(TransactionTestCase):
         self.assertContains(response, f'<option value="{m2mpage_ct_id}">M2M page</option>')
         self.assertContains(response, '<form action="/admin/csv-import/import_from_file/" enctype="multipart/form-data" method="POST"')
         self.assertContains(response, '<input type="file" name="file"')
+        # check explanations
         self.assertContains(response, 'These are all the fields accepted in the CSV header: <pre>id,content_type,parent,title,slug,full_url,live,draft_title,expire_at,expired,first_published_at,go_live_at,has_unpublished_changes,last_published_at,latest_revision_created_at,live_revision,locked,owner,search_description,seo_title,show_in_menus</pre>')
+        self.assertContains(response, 'Please note that date fields will be interpreted in the user\'s current timezone: UTC')
 
     def test_import_post(self):
         # create a page to update it
@@ -64,6 +66,7 @@ class ImportViewTests(TransactionTestCase):
         }
         response = self.client.post('/admin/csv-import/import_from_file/', data)
         self.assertEqual(response.status_code, 200)
+        print(response.content[response.content.index(b'<div class="messages">'):])
         self.assertContains(response, 'Created page New Page')
         self.assertContains(response, 'Updated page Updated Existing Page')
         self.assertContains(response, 'Errors processing row number 3: need parent')

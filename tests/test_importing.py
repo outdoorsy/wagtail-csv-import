@@ -1,8 +1,10 @@
 # coding: utf-8
 from io import StringIO
 
+from django.contrib.auth.models import User
 from django.contrib.contenttypes.models import ContentType
 from django.test import TransactionTestCase
+import pytz
 
 from wagtail.core.models import Page
 from wagtail.core.models import Site
@@ -49,6 +51,7 @@ class ImportingTests(TransactionTestCase):
                 'is_default_site': True,
             }
         )
+        self.user = User.objects.create_superuser('admin', 'admin', 'admin')
 
     def test_create_cannot_set_excluded_fields(self):
         csv_data = StringIO(
@@ -150,9 +153,14 @@ class ImportingTests(TransactionTestCase):
         )
 
     def test_create_simple_page_all_fields(self):
+        """Test a CSV with all possible fields.
+
+        Check that non-editable fields are ignored.
+
+        """
         csv_data = StringIO(
-            'id,content_type,parent,title,slug,full_url,seo_title,search_description,live,bool_field,char_field,int_field,rich_text_field\r\n'
-            f',tests.simplepage,{self.home.pk},Test page,slug-life,http://localhost/test-page/,SEO title,SEO desc,False,False,char,42,<p>Rich text</p>\r\n'
+            'id,content_type,parent,title,slug,full_url,live,bool_field,char_field,draft_title,expire_at,expired,first_published_at,go_live_at,has_unpublished_changes,int_field,last_published_at,latest_revision_created_at,live_revision,locked,owner,rich_text_field,search_description,seo_title,show_in_menus\r\n'
+            f',tests.simplepage,{self.home.pk},Test page,slug-life,http://wrong_url/,True,False,char,Draft title,2020-12-12 12:12:12,True,2019-01-01 01:01:01,,,42,2019-02-02 02:02:02,2019-03-03 03:03:03,123456,True,{self.user.id},<p>Rich text</p>,SEO desc,SEO title,True\r\n'
         )
         successes, errors = import_pages(csv_data, SimplePage)
         self.assertEqual(successes, ['Created page Test page'], f'Errors: {errors}')
@@ -161,13 +169,26 @@ class ImportingTests(TransactionTestCase):
         self.assertEqual(page.get_parent().id, self.home.pk)
         self.assertEqual(page.title, 'Test page')
         self.assertEqual(page.slug, 'slug-life')
-        self.assertEqual(page.seo_title, 'SEO title')
-        self.assertEqual(page.search_description, 'SEO desc')
-        self.assertIs(page.live, False)
+        self.assertEqual(page.full_url, 'http://localhost/slug-life/')
+        self.assertIs(page.live, True)
         self.assertIs(page.bool_field, False)
         self.assertEqual(page.char_field, 'char')
+        self.assertEqual(page.draft_title, 'Test page')  # field was ignored
+        self.assertEqual(page.expire_at, pytz.datetime.datetime(2020, 12, 12, 12, 12, 12, tzinfo=pytz.UTC))
+        self.assertIs(page.expired, False)
+        self.assertNotEqual(page.first_published_at, pytz.datetime.datetime(2019, 1, 1, 1, 1, 1, tzinfo=pytz.UTC))  # field was ignored
+        self.assertIsNone(page.go_live_at)
+        self.assertIs(page.has_unpublished_changes, False)
         self.assertEqual(page.int_field, 42)
+        self.assertNotEqual(page.last_published_at, pytz.datetime.datetime(2019, 2, 2, 2, 2, 2, tzinfo=pytz.UTC))  # field was ignored
+        self.assertNotEqual(page.latest_revision_created_at, pytz.datetime.datetime(2019, 3, 3, 3, 3, 3, tzinfo=pytz.UTC))  # field was ignored
+        self.assertNotEqual(page.live_revision_id, 123456)
+        self.assertIs(page.locked, False)
+        self.assertEqual(page.owner_id, self.user.id)
         self.assertEqual(page.rich_text_field, '<p>Rich text</p>')
+        self.assertEqual(page.search_description, 'SEO desc')
+        self.assertEqual(page.seo_title, 'SEO title')
+        self.assertIs(page.show_in_menus, True)
 
     def test_create_simple_page_minimum_required_fields(self):
         csv_data = StringIO(

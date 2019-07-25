@@ -2,6 +2,7 @@ from pprint import pprint
 from django.http import Http404
 from django.http import StreamingHttpResponse
 from django.shortcuts import redirect, render
+from django.utils.timezone import get_current_timezone_name
 from django.utils.translation import ungettext, ugettext_lazy as _
 
 try:
@@ -70,6 +71,7 @@ def import_from_file(request):
         'request': request,
         'successes': successes,
         'errors': errors,
+        'timezone': get_current_timezone_name(),
     })
 
 
@@ -114,6 +116,7 @@ def export_to_file(request):
         'export_form': export_form,
         'page_type_form': page_type_form,
         'request': request,
+        'timezone': get_current_timezone_name(),
     })
 
 

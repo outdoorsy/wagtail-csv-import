@@ -1,4 +1,5 @@
 import csv
+from datetime import datetime
 from functools import lru_cache
 from itertools import chain
 import logging
@@ -134,5 +135,10 @@ def export_pages(root_page, content_type=None, fieldnames=None,
                     page_data[fieldname] = field.value_from_object(page)
                 else:
                     # regular non-relation field
-                    page_data[fieldname] = field.value_from_object(page)
+                    value = field.value_from_object(page)
+                    if isinstance(value, datetime):
+                        # don't output timezone information, it causes
+                        # errors when importing
+                        value = value.strftime('%Y-%m-%d %H:%M:%S')
+                    page_data[fieldname] = value
         yield csv_writer.writerow(page_data)

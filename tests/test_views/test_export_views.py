@@ -58,6 +58,8 @@ class ExportViewTests(TestCase):
         self.assertNotContains(response, b'value="rich_text_field"')
         self.assertNotContains(response, b'value="fk"')
         self.assertNotContains(response, b'value="m2m"')
+        # check timezone explanation
+        self.assertContains(response, b'Exported dates will be on the current timezone: UTC')
 
     def test_export_get_with_page_type(self):
         ct = ContentType.objects.get_for_model(SimplePage)

@@ -1,6 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
-
+import pytz
 from wagtail.core.models import Page
 
 from wagtailcsvimport.exporting import export_pages
@@ -135,7 +135,8 @@ class ExportingTests(TestCase):
             int_field=42,
             rich_text_field='<p>Rich text</p>',
             title='Test page',
-            live=True
+            live=True,
+            first_published_at=pytz.datetime.datetime(2019, 1, 1, 1, 1, 1, tzinfo=pytz.UTC)
         )
         page2 = SimplePage(
             bool_field=True,
@@ -146,7 +147,8 @@ class ExportingTests(TestCase):
             slug='custom-slug',
             seo_title='SEO title',
             search_description='SEO description',
-            live=True
+            live=True,
+            first_published_at=pytz.datetime.datetime(2019, 2, 2, 2, 2, 2, tzinfo=pytz.UTC)
         )
         home = Page.objects.get(pk=2)
         home.add_child(instance=page1)
@@ -158,8 +160,8 @@ class ExportingTests(TestCase):
             row_iter,
             [
                 'id,content_type,parent,title,slug,full_url,live,bool_field,char_field,draft_title,expire_at,expired,first_published_at,go_live_at,has_unpublished_changes,int_field,last_published_at,latest_revision_created_at,live_revision,locked,owner,rich_text_field,search_description,seo_title,show_in_menus\r\n',
-                '3,tests.simplepage,2,Test page,test-page,http://localhost/test-page/,True,False,char,Test page,,False,,,False,42,,,,False,,<p>Rich text</p>,,,False\r\n',
-                '4,tests.simplepage,2,Another test page,custom-slug,http://localhost/custom-slug/,True,True,almendras,Another test page,,False,,,False,27,,,,False,,,SEO description,SEO title,False\r\n',
+                '3,tests.simplepage,2,Test page,test-page,http://localhost/test-page/,True,False,char,Test page,,False,2019-01-01 01:01:01,,False,42,,,,False,,<p>Rich text</p>,,,False\r\n',
+                '4,tests.simplepage,2,Another test page,custom-slug,http://localhost/custom-slug/,True,True,almendras,Another test page,,False,2019-02-02 02:02:02,,False,27,,,,False,,,SEO description,SEO title,False\r\n',
             ]
         )
 

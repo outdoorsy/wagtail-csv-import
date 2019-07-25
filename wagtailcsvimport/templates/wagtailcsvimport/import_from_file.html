@@ -31,6 +31,8 @@
             <p>These are all the fields accepted in the CSV header: <pre>{{ csv_header_example }}</pre></p>
             {% endif %}
 
+            <p>Please note that date fields will be interpreted in the user's current timezone: {{ timezone }}.</p>
+
             <input type="submit" value="{% trans 'Import' %}" class="button">
         </form>
     </div>

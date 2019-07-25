@@ -28,6 +28,8 @@
                 {% endfor %}
             </ul>
 
+            <p>Exported dates will be on the current timezone: {{ timezone }}</p>
+
             <input type="submit" value="{% trans 'Export' %}" class="button">
         </form>
         {% endif %}
