@@ -6,6 +6,8 @@ from django.conf import settings
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from wagtail.admin.rich_text.editors.draftail import DraftailRichTextArea
 from wagtail.core.models import Page
 
@@ -31,6 +33,43 @@ class Error:
 
     def __repr__(self):
         return f'Error({self})'
+
+    def as_html(self):
+        """Outputs the error in HTML appropriate for wagtailcsvimport templates.
+
+        Handle different values, such as ValidationError, which
+        require special processing for proper output.
+
+        Strings are properly escaped to prevent XSS attacks.
+
+        """
+        if isinstance(self.value, dict):
+            error_list = []
+            for key, raw_value in self.value.items():
+                # msg can be a list
+                try:
+                    iterator = iter(raw_value)
+                except TypeError:
+                    # treat it as a string
+                    str_value = str(raw_value)
+                else:
+                    # iterable, concatenate the values
+                    # items can be ValidationError, which have a message attribute
+                    str_value = '; '.join(str(getattr(item, 'message', item)) for item in iterator)
+                error = format_html(
+                    '<li>{}: {}</li>',
+                    key, str_value
+                )
+                error_list.append(error)
+            # individual errors have already been escaped by format_html
+            detailed_errors = mark_safe('\n'.join(error_list))
+        else:
+            detailed_errors = str(self.value)
+        html = format_html(
+            '<ul>{}: {}</ul>',
+            self.msg, detailed_errors
+        )
+        return html
 
 
 def import_pages(csv_file, page_model):

@@ -17,7 +17,7 @@
             <ul>
                 {% for error in errors %}
                 <li class="error">
-                    {{ error }}
+                    {{ error.as_html }}
                 </li>
                 {% endfor %}
                 {% for success in successes %}
