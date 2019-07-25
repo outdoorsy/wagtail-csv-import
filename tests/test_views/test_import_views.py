@@ -66,13 +66,12 @@ class ImportViewTests(TransactionTestCase):
         }
         response = self.client.post('/admin/csv-import/import_from_file/', data)
         self.assertEqual(response.status_code, 200)
-        print(response.content[response.content.index(b'<div class="messages">'):])
         self.assertContains(response, 'Created page New Page')
         self.assertContains(response, 'Updated page Updated Existing Page')
-        self.assertContains(response, 'Errors processing row number 3: need parent')
-        self.assertContains(response, 'Errors processing row number 4: wrong type')
+        self.assertContains(response, 'Errors processing row number 3: <li>parent: Need a parent when creating a new page</li>\n<li>int_field: This field is required.</li>')
+        self.assertContains(response, 'Errors processing row number 4: <li>int_field: This field is required.</li>\n<li>content_type: Expected tests.simplepage, was tests.m2mpage</li>')
 
-        # because there is an error, the successes were not committed to DB
+        # because there were errors the successes were not committed to DB
         self.assertQuerysetEqual(SimplePage.objects.all(),
                                  ['<SimplePage: Existing Page>'])
 
