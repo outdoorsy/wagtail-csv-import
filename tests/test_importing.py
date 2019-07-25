@@ -357,16 +357,10 @@ class ImportingTests(TestCase):
         )
 
     def test_wrong_file_content(self):
-        not_csv_data = StringIO(
-            '<html>\n'
-            '<body>\n'
-            '<h1>Just a simple HTML page</h1>\n'
-            '</body>\n'
-            '</html>\n'
-        )
+        not_csv_data = BytesIO(b'\x01\x11\x21\x31\x41\x51\x61\x71\x81\x91')
         successes, errors = import_pages(not_csv_data, Page)
         self.assertEqual(successes, [])
         self.assertEqual(
             [repr(e) for e in errors],
-            ["Error(Errors processing row number 1: {'slug': ['This slug is already in use']})"]
+            ["Error(File is not valid CSV)"]
         )

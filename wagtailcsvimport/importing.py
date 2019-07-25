@@ -28,7 +28,10 @@ class Error:
         self.value = value
 
     def __str__(self):
-        return f'{self.msg}: {self.value!s}'
+        if self.value is None:
+            return self.msg
+        else:
+            return f'{self.msg}: {self.value!s}'
 
     def __repr__(self):
         return f'Error({self})'
@@ -42,7 +45,9 @@ class Error:
         Strings are properly escaped to prevent XSS attacks.
 
         """
-        if isinstance(self.value, dict):
+        if self.value is None:
+            return format_html('<ul>{}</ul>', self.msg)
+        elif isinstance(self.value, dict):
             error_list = []
             for key, raw_value in self.value.items():
                 # msg can be a list
@@ -64,11 +69,8 @@ class Error:
             detailed_errors = mark_safe('\n'.join(error_list))
         else:
             detailed_errors = str(self.value)
-        html = format_html(
-            '<ul>{}: {}</ul>',
-            self.msg, detailed_errors
-        )
-        return html
+
+        return format_html('<ul>{}: {}</ul>', self.msg, detailed_errors)
 
 
 def import_pages(csv_file, page_model):
@@ -89,6 +91,9 @@ def import_pages(csv_file, page_model):
 
     try:
         form_class = get_form_class(page_model, reader.fieldnames)
+    except csv.Error:
+        errors.append(Error('File is not valid CSV', None))
+        return successes, errors
     except FieldError as e:
         errors.append(Error('Error in CSV header', e))
         return successes, errors
