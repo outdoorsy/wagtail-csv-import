@@ -98,53 +98,50 @@ def import_pages(csv_file, page_model):
         errors.append(Error('Error in CSV header', error_msg))
         return successes, errors
 
-    # transaction will only commit if there are no errors
-    transaction.set_autocommit(False)
-
     try:
         for i, row in enumerate(reader, start=1):
-            page_id = row.pop('id')
-            if page_id:
-                # update existing page
-                page = page_model.objects.get(pk=page_id)
-                form = form_class(row, instance=page)
+            page, error = import_page(row, i, page_model, form_class)
+            if error:
+                logger.info('Errors importing row %s: %s', i, error)
+                errors.append(error)
+            elif page and row.get('id'):
+                logger.info('Updated page "%s" with id %d', page.title, page.pk)
+                successes.append(f'Updated page {page.title} with id {page.pk}')
+            elif page:
+                logger.info('Created page "%s" with id %d', page.title, page.pk)
+                successes.append(f'Created page {page.title} with id {page.pk}')
             else:
-                form = form_class(row)
-
-            if form.is_valid():
-                try:
-                    new_page = form.save()
-                except ValidationError as e:
-                    logger.info('Validation errors importing row %s: %r',
-                                i, e.message_dict)
-                    errors.append(Error(f'Errors processing row number {i}',
-                                        e.message_dict))
-                else:
-                    if page_id:
-                        logger.info('Updated page "%s" with id %d',
-                                    new_page.title, new_page.pk)
-                        successes.append(f'Updated page {new_page.title}')
-                    else:
-                        logger.info('Created page "%s" with id %d',
-                                    new_page.title, new_page.pk)
-                        successes.append(f'Created page {new_page.title}')
-            else:
-                logger.info('Error importing row number %s: %r', i, form.errors)
-                errors.append(Error(f'Errors processing row number {i}',
-                                    form.errors.as_data()))
+                logger.error('')
     except Exception as e:
         # something unexpected happened, tell the user and make sure
         # we rollback the transaction
         logger.exception('Exception importing CSV file')
         errors.append(Error(f'Irrecoverable exception importing row number {i}', e))
 
-    if errors:
-        transaction.rollback()
-    else:
-        transaction.commit()
-    transaction.set_autocommit(True)
-
     return successes, errors
+
+
+def import_page(row, row_number, page_model, form_class):
+    page_id = row.get('id')
+    if page_id:
+        # update existing page
+        page = page_model.objects.get(pk=page_id)
+        form = form_class(row, instance=page)
+    else:
+        form = form_class(row)
+
+    if form.is_valid():
+        try:
+            with transaction.atomic():
+                page = form.save()
+        except ValidationError as e:
+            return None, Error(f'Errors processing row number {row_number}',
+                               e.message_dict)
+        else:
+            return page, None
+    else:
+        return None, Error(f'Errors processing row number {row_number}',
+                           form.errors.as_data())
 
 
 def check_csv_header(header_row, page_model, form_class):
