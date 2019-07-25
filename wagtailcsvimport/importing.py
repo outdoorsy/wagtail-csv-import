@@ -142,6 +142,7 @@ def import_pages(csv_file, page_model):
         transaction.rollback()
     else:
         transaction.commit()
+    transaction.set_autocommit(True)
 
     return successes, errors
 
