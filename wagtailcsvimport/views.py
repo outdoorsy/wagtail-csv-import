@@ -17,6 +17,7 @@ from .exporting import get_exportable_fields_for_model
 from .forms import ExportForm
 from .forms import ImportForm
 from .forms import PageTypeForm
+from .importing import Error
 from .importing import import_pages
 
 
@@ -52,8 +53,12 @@ def import_from_file(request):
             page_model = page_type_form.get_page_model()
             import_form = ImportForm(request.POST, request.FILES)
             if import_form.is_valid():
-                csv_file = import_form.cleaned_data['file'].read().decode('utf-8')
-                successes, errors = import_pages(csv_file.splitlines(), page_model)
+                try:
+                    csv_file = import_form.cleaned_data['file'].read().decode('utf-8')
+                except UnicodeDecodeError as e:
+                    errors.append(Error('Error decoding file, make sure it\'s an UTF-8 encoded CSV file', e))
+                else:
+                    successes, errors = import_pages(csv_file.splitlines(), page_model)
                 return render(request, 'wagtailcsvimport/import_from_file_results.html', {
                     'request': request,
                     'successes': successes,

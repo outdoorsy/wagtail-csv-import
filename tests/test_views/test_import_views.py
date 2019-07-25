@@ -77,11 +77,8 @@ class ImportViewTests(TransactionTestCase):
                                  ['<SimplePage: Existing Page>'])
 
     def test_import_post_not_csv_file(self):
-        file_data = (
-            ''
-        )
         wrong_file = SimpleUploadedFile("not_a_csv.txt",
-                                        file_data.encode('utf-8'),
+                                        b'\x00\x10\x20\x30\x40\x50\x60\x70\x80\x90',
                                         content_type="text/csv")
         data = {
             'file': wrong_file,
@@ -89,5 +86,4 @@ class ImportViewTests(TransactionTestCase):
         }
         response = self.client.post('/admin/csv-import/import_from_file/', data)
         self.assertEqual(response.status_code, 200)
-        # print(response.content)
-        # self.assertContains(response, '')
+        self.assertContains(response, 'Error decoding file, make sure it&#39;s an UTF-8 encoded CSV file')
