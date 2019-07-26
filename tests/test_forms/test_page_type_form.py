@@ -14,12 +14,11 @@ class PageTypeFormTests(TestCase):
         self.assertEqual(
             form.fields['page_type'].choices,
             [
-                (7, 'M2M page'),
                 (1, 'Page'),
+                (7, 'M2M page'),
                 (6, 'Simple page'),
             ]
         )
-        self.assertEqual(form.fields['page_type'].initial, 1)
 
     def test_get_content_type_with_empty_page_type(self):
         from wagtailcsvimport.forms import PageTypeForm

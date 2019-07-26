@@ -28,22 +28,27 @@ class PageTypeForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        page_type_choices, page_type_initial = self.get_page_type_choices()
+        page_type_choices = self.get_page_type_choices()
         self.fields['page_type'].choices = page_type_choices
-        self.fields['page_type'].initial = page_type_initial
 
     @staticmethod
     def get_page_type_choices():
         choices = []
         for m in get_page_models():
             choice = (ContentType.objects.get_for_model(m).id, m.get_verbose_name())
-            choices.append(choice)
             if m is Page:
-                # preselect Page
-                initial = choice[0]
+                page_choice = choice
+            else:
+                choices.append(choice)
+
         # sort by model verbose name
         choices.sort(key=lambda c: c[1])
-        return choices, initial
+
+        # HACK: put Page first so it will appear as default
+        # Using initial won't work because the form is always bound in the views
+        choices.insert(0, page_choice)
+
+        return choices
 
     def get_content_type(self):
         assert(not self._errors)  # must be called after is_valid()
