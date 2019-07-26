@@ -47,4 +47,7 @@ TEMPLATES = [
     }
 ]
 
+USE_TZ = True
+TIME_ZONE = 'UTC'
+
 WAGTAIL_SITE_NAME = 'wagtailcsvimport tests'

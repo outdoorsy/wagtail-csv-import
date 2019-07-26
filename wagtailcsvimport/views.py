@@ -1,20 +1,20 @@
-from pprint import pprint
 from django.http import Http404
 from django.http import StreamingHttpResponse
-from django.shortcuts import redirect, render
-from django.utils.translation import ungettext, ugettext_lazy as _
+from django.shortcuts import render
+from django.utils.timezone import get_current_timezone_name
+from django.utils.translation import ugettext as _
 
 try:
-    from wagtail.admin import messages
     from wagtail.core.models import Page
 except ImportError:  # fallback for Wagtail <2.0
-    from wagtail.wagtailadmin import messages
     from wagtail.wagtailcore.models import Page
 
 from .exporting import export_pages
+from .exporting import get_exportable_fields_for_model
 from .forms import ExportForm
-from .forms import ImportFromFileForm
+from .forms import ImportForm
 from .forms import PageTypeForm
+from .importing import Error
 from .importing import import_pages
 
 
@@ -23,39 +23,59 @@ def index(request):
 
 
 def import_from_file(request):
-    """
-    Bulk create new pages based on fields defined in a CSV file
+    """Import pages from a CSV file.
 
-    The source site's base url and the source page id of the point in the
-    tree to import defined what to import and the destination parent page
-    defines where to import it to.
-    """
-    if request.method == 'POST':
-        form = ImportFromFileForm(request.POST, request.FILES)
-        if form.is_valid():
-            import_data = form.cleaned_data['file'].read().decode('utf-8')
-            parent_page = form.cleaned_data['parent_page']
+    The CSV format is compatible with the one that the CSV exporter
+    generates. This means it's possible to export pages to CSV, make
+    changes and then import the file to bulk update them.
 
-            try:
-                page_count = import_pages(import_data, parent_page)
-            except Exception as e:
-                pprint(vars(e))
-                messages.error(request, _(
-                    "Import failed: %(reason)s") % {'reason': e}
-                )
-            else:
-                messages.success(request, ungettext(
-                    "%(count)s page imported.",
-                    "%(count)s pages imported.",
-                    page_count) % {'count': page_count}
-                )
-            return redirect('wagtailadmin_explore', parent_page.pk)
-    else:
-        form = ImportFromFileForm()
+    Import is all-or-nothing. If there is at least one error then all
+    changes will be rolled back.
+
+    """
+    successes = []
+    errors = []
+    csv_header_example = None
+    import_form = None
+    page_model = None
+
+    if request.method == 'GET':
+        page_type_form = PageTypeForm(request.GET)
+        if page_type_form.is_valid():
+            page_model = page_type_form.get_page_model()
+            import_form = ImportForm()
+    elif request.method == 'POST':
+        page_type_form = PageTypeForm(request.POST)
+        if page_type_form.is_valid():
+            page_model = page_type_form.get_page_model()
+            import_form = ImportForm(request.POST, request.FILES)
+            if import_form.is_valid():
+                uploaded_file = import_form.cleaned_data['file']
+                try:
+                    csv_file = uploaded_file.read().decode('utf-8')
+                except UnicodeDecodeError as e:
+                    errors.append(Error(_("Error decoding file, make sure it's an UTF-8 encoded CSV file"), e))
+                else:
+                    successes, errors = import_pages(csv_file.splitlines(), page_model)
+                return render(request, 'wagtailcsvimport/import_from_file_results.html', {
+                    'request': request,
+                    'successes': successes,
+                    'errors': errors,
+                    'filename': uploaded_file.name,
+                })
+
+    if page_model:
+        all_fields = get_exportable_fields_for_model(page_model)
+        csv_header_example = ','.join(all_fields)
 
     return render(request, 'wagtailcsvimport/import_from_file.html', {
-        'form': form,
+        'csv_header_example': csv_header_example,
+        'import_form': import_form,
+        'page_type_form': page_type_form,
         'request': request,
+        'successes': successes,
+        'errors': errors,
+        'timezone': get_current_timezone_name(),
     })
 
 
@@ -100,6 +120,7 @@ def export_to_file(request):
         'export_form': export_form,
         'page_type_form': page_type_form,
         'request': request,
+        'timezone': get_current_timezone_name(),
     })
 
 

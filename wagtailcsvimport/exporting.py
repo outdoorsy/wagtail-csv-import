@@ -1,13 +1,13 @@
 import csv
+from datetime import datetime
 from functools import lru_cache
 from itertools import chain
 import logging
 
+from django.utils.translation import ugettext as _
 try:
-    from wagtail.core.models import get_page_models
     from wagtail.core.models import Page
 except ImportError:  # fallback for Wagtail <2.0
-    from wagtail.wagtailcore.models import get_page_models
     from wagtail.wagtailcore.models import Page
 
 
@@ -43,13 +43,14 @@ def get_exportable_fields_for_model(page_model):
             fields.append(f.name)
     # fields that don't exist on DB
     fields.extend(GENERATED_FIELDS['__all__'].keys())
+
     # sort fields, put common ones first, then the rest alphabetically
-    fields.sort()
     def field_sort(item):
         try:
             return BASE_FIELDS_ORDER.index(item)
         except ValueError:
             return len(BASE_FIELDS_ORDER)
+    fields.sort()
     fields.sort(key=field_sort)
     return fields
 
@@ -107,7 +108,9 @@ def export_pages(root_page, content_type=None, fieldnames=None,
         all_exportable_fields = get_exportable_fields_for_model(page_model)
         unrecognized_fields = set(fieldnames) - set(all_exportable_fields)
         if unrecognized_fields:
-            raise ValueError("Don't recognize these fields: %r" % sorted(unrecognized_fields))
+            raise ValueError(_("Don't recognize these fields: %(field_list)s") % {
+                'field_list': sorted(unrecognized_fields)
+            })
     else:
         # default to all exportable fields for the given model
         fieldnames = get_exportable_fields_for_model(page_model)
@@ -134,5 +137,10 @@ def export_pages(root_page, content_type=None, fieldnames=None,
                     page_data[fieldname] = field.value_from_object(page)
                 else:
                     # regular non-relation field
-                    page_data[fieldname] = field.value_from_object(page)
+                    value = field.value_from_object(page)
+                    if isinstance(value, datetime):
+                        # don't output timezone information, it causes
+                        # errors when importing
+                        value = value.strftime('%Y-%m-%d %H:%M:%S')
+                    page_data[fieldname] = value
         yield csv_writer.writerow(page_data)

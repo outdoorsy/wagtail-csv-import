@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from django import forms
+from django.forms import Media
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import ugettext_lazy as _
 
@@ -29,15 +30,24 @@ class PageTypeForm(forms.Form):
         super().__init__(*args, **kwargs)
         page_type_choices = self.get_page_type_choices()
         self.fields['page_type'].choices = page_type_choices
-        self.fields['page_type'].initial = page_type_choices[0][0]
 
     @staticmethod
-    @lru_cache(1)
     def get_page_type_choices():
         choices = []
         for m in get_page_models():
             choice = (ContentType.objects.get_for_model(m).id, m.get_verbose_name())
-            choices.append(choice)
+            if m is Page:
+                page_choice = choice
+            else:
+                choices.append(choice)
+
+        # sort by model verbose name
+        choices.sort(key=lambda c: c[1])
+
+        # HACK: put Page first so it will appear as default
+        # Using initial won't work because the form is always bound in the views
+        choices.insert(0, page_choice)
+
         return choices
 
     def get_content_type(self):
@@ -46,22 +56,24 @@ class PageTypeForm(forms.Form):
         if content_type_id:
             content_type = ContentType.objects.get_for_id(content_type_id)
             return content_type
+        else:
+            return ContentType.objects.get_for_model(Page)
 
     def get_page_model(self):
         assert(not self._errors)  # must be called after is_valid()
         content_type = self.get_content_type()
         if content_type is not None:
             return content_type.model_class()
+        else:
+            return Page
+
+    @property
+    def media(self):
+        return Media(js=['wagtailcsvimport/js/page_type_form_helpers.js'])
 
 
-class ImportFromFileForm(forms.Form):
+class ImportForm(forms.Form):
     file = forms.FileField(label=_("File to import"))
-    parent_page = forms.ModelChoiceField(
-        queryset=Page.objects.all(),
-        widget=AdminPageChooser(can_choose_root=True, user_perms='copy_to'),
-        label=_("Destination parent page"),
-        help_text=_("Imported pages will be created as children of this page.")
-    )
 
 
 class ExportForm(forms.Form):
