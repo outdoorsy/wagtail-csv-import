@@ -2,6 +2,7 @@ from django.http import Http404
 from django.http import StreamingHttpResponse
 from django.shortcuts import render
 from django.utils.timezone import get_current_timezone_name
+from django.utils.translation import ugettext as _
 
 try:
     from wagtail.core.models import Page
@@ -52,7 +53,7 @@ def import_from_file(request):
                 try:
                     csv_file = import_form.cleaned_data['file'].read().decode('utf-8')
                 except UnicodeDecodeError as e:
-                    errors.append(Error('Error decoding file, make sure it\'s an UTF-8 encoded CSV file', e))
+                    errors.append(Error(_("Error decoding file, make sure it's an UTF-8 encoded CSV file"), e))
                 else:
                     successes, errors = import_pages(csv_file.splitlines(), page_model)
                 return render(request, 'wagtailcsvimport/import_from_file_results.html', {

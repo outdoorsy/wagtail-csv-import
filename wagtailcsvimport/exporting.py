@@ -4,6 +4,7 @@ from functools import lru_cache
 from itertools import chain
 import logging
 
+from django.utils.translation import ugettext as _
 try:
     from wagtail.core.models import Page
 except ImportError:  # fallback for Wagtail <2.0
@@ -107,7 +108,9 @@ def export_pages(root_page, content_type=None, fieldnames=None,
         all_exportable_fields = get_exportable_fields_for_model(page_model)
         unrecognized_fields = set(fieldnames) - set(all_exportable_fields)
         if unrecognized_fields:
-            raise ValueError("Don't recognize these fields: %r" % sorted(unrecognized_fields))
+            raise ValueError(_("Don't recognize these fields: %(field_list)s") % {
+                'field_list': sorted(unrecognized_fields)
+            })
     else:
         # default to all exportable fields for the given model
         fieldnames = get_exportable_fields_for_model(page_model)

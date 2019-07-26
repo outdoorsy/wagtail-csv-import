@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django.utils.translation import ugettext as _
 from wagtail.admin.rich_text.editors.draftail import DraftailRichTextArea
 from wagtail.core.models import Page
 
@@ -91,15 +92,15 @@ def import_pages(csv_file, page_model):
     try:
         form_class = get_form_class(page_model, reader.fieldnames)
     except csv.Error:
-        errors.append(Error('File is not valid CSV', None))
+        errors.append(Error(_('File is not valid CSV'), None))
         return successes, errors
     except FieldError as e:
-        errors.append(Error('Error in CSV header', e))
+        errors.append(Error(_('Error in CSV header'), e))
         return successes, errors
 
     error_msg = check_csv_header(reader.fieldnames, page_model, form_class)
     if error_msg:
-        errors.append(Error('Error in CSV header', error_msg))
+        errors.append(Error(_('Error in CSV header'), error_msg))
         return successes, errors
 
     try:
@@ -110,17 +111,21 @@ def import_pages(csv_file, page_model):
                 errors.append(error)
             elif page and row.get('id'):
                 logger.info('Updated page "%s" with id %d', page.title, page.pk)
-                successes.append(f'Updated page {page.title} with id {page.pk}')
+                successes.append(_('Updated page %(title)s with id %(id)s') % {
+                    'title': page.title, 'id': page.pk
+                })
             elif page:
                 logger.info('Created page "%s" with id %d', page.title, page.pk)
-                successes.append(f'Created page {page.title} with id {page.pk}')
+                successes.append(_('Created page %(title)s with id %(id)s') % {
+                    'title': page.title, 'id': page.pk
+                })
             else:
                 logger.error('')
     except Exception as e:
         # something unexpected happened, tell the user and make sure
         # we rollback the transaction
         logger.exception('Exception importing CSV file')
-        errors.append(Error(f'Irrecoverable exception importing row number {i}', e))
+        errors.append(Error(_('Irrecoverable exception importing row number %(number)s') % {'number': i}, e))
 
     return successes, errors
 
@@ -139,12 +144,12 @@ def import_page(row, row_number, page_model, form_class):
             with transaction.atomic():
                 page = form.save()
         except ValidationError as e:
-            return None, Error(f'Errors processing row number {row_number}',
+            return None, Error(_('Errors processing row number %(number)s') % {'number': row_number},
                                e.message_dict)
         else:
             return page, None
     else:
-        return None, Error(f'Errors processing row number {row_number}',
+        return None, Error(_('Errors processing row number %(number)s') % {'number': row_number},
                            form.errors.as_data())
 
 
@@ -165,7 +170,9 @@ def check_csv_header(header_row, page_model, form_class):
     all_valid_fields = set(get_exportable_fields_for_model(page_model))
     unrecognized_fields = header_fields - all_valid_fields
     if unrecognized_fields:
-        return 'Unrecognized fields: %s' % sorted(unrecognized_fields)
+        return _('Unrecognized fields: %(field_list)s') % {
+            'field_list': sorted(unrecognized_fields)
+        }
 
     # check all required fields are accounted for
     required_fields = set()
@@ -174,8 +181,9 @@ def check_csv_header(header_row, page_model, form_class):
             required_fields.add(field_name)
     missing_required_fields = required_fields - header_fields
     if missing_required_fields:
-        return ('Missing the following required fields: '
-                '%s' % sorted(missing_required_fields))
+        return _('Missing the following required fields: %(field_list)s') % {
+            'field_list': sorted(missing_required_fields)
+        }
 
 
 class CSVM2MField(forms.ModelMultipleChoiceField):
@@ -211,7 +219,9 @@ class PageModelForm(forms.ModelForm):
         value = self.cleaned_data.get('content_type')
         model_string = f'{self.instance._meta.app_label}.{self.instance._meta.model_name}'
         if value and value != model_string:
-            raise ValidationError(f"Expected {model_string}, was {value}")
+            raise ValidationError(_('Expected %(expected_value)s, was %(received_value)s') % {
+                'expected_value': model_string, 'received_value': value
+            })
 
     def clean_live(self):
         # live field is not going to be manipulated directly, instead
@@ -232,10 +242,10 @@ class PageModelForm(forms.ModelForm):
         if self.instance.pk:
             parent = self.instance.get_parent()
             if value and parent != value:
-                raise ValidationError('Cannot change parent page, moving pages is not yet supported.')
+                raise ValidationError(_('Cannot change parent page, moving pages is not yet supported.'))
         else:
             if not value:
-                raise ValidationError('Need a parent when creating a new page')
+                raise ValidationError(_('Need a parent when creating a new page'))
         return value
 
     def save(self, commit=True):
