@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from django import forms
+from django.forms import Media
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import ugettext_lazy as _
 
@@ -55,6 +56,10 @@ class PageTypeForm(forms.Form):
             return content_type.model_class()
         else:
             return Page
+
+    @property
+    def media(self):
+        return Media(js=['wagtailcsvimport/js/page_type_form_helpers.js'])
 
 
 class ImportForm(forms.Form):
