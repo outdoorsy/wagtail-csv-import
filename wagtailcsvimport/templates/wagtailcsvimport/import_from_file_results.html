@@ -7,12 +7,9 @@
 {% block content %}
     {% trans "Import pages results" as title_str %}
     {% include "wagtailadmin/shared/header.html" with title=title_str icon="download" %}
-
-    <div class="nice-padding">
-        <div>
-            <p>{% blocktrans %}These are the results of importing file {{filename}}.{% endblocktrans %}</p>
-            <a href="javascript:history.back()" class="button">{% trans "Go back to retry" %}</a>
-        </div>
+    <div id="import-results" class="nice-padding">
+        <p>{% blocktrans %}These are the results of importing file {{filename}}.{% endblocktrans %}</p>
+        <a href="javascript:history.back()" class="button">{% trans "Go back to retry" %}</a>
         <div class="messages">
             <ul>
                 {% for error in errors %}
@@ -28,6 +25,23 @@
             </ul>
         </div>
     </div>
+{% endblock %}
+
+{% block extra_css %}
+    {{ block.super }}
+    <style>
+        #import-results .messages {
+            margin-top: 40px;
+        }
+        .messages li.error > ul {
+            display: inline-grid;
+            margin: 0;
+            padding: 0;
+        }
+        .messages li.error > ul > li {
+            margin-left: 1em;
+        }
+    </style>
 {% endblock %}
 
 {% block extra_js %}
