@@ -18,18 +18,18 @@ class ExportViewTests(TestCase):
         data = {
             'page_type': 4242,
         }
-        response = self.client.post('/admin/csv-import/export_to_file/', data)
+        response = self.client.post('/admin/csv/export-to-file/', data)
         self.assertContains(response, b'Select a valid choice. 4242 is not one of the available choices.')
         self.assertEqual(response.status_code, 200)
 
     def test_export_get(self):
-        response = self.client.get('/admin/csv-import/export_to_file/')
+        response = self.client.get('/admin/csv/export-to-file/')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, b'<form action="/admin/csv-import/export_to_file/" method="GET"')
+        self.assertContains(response, b'<form action="/admin/csv/export-to-file/" method="GET"')
         self.assertContains(response, b'<option value="1">Page</option>')
         self.assertContains(response, b'<option value="6">Simple page</option>')
         self.assertContains(response, b'<option value="7">M2M page</option>')
-        self.assertContains(response, b'<form action="/admin/csv-import/export_to_file/" method="POST"')
+        self.assertContains(response, b'<form action="/admin/csv/export-to-file/" method="POST"')
         self.assertContains(response, b'<input type="checkbox" name="fields" value="id" id="id_fields_0" checked>')
         self.assertContains(response, b'<input type="checkbox" name="fields" value="content_type" id="id_fields_1" checked>')
         self.assertContains(response, b'<input type="checkbox" name="fields" value="parent" id="id_fields_2" checked>')
@@ -64,10 +64,10 @@ class ExportViewTests(TestCase):
     def test_export_get_with_page_type(self):
         ct = ContentType.objects.get_for_model(SimplePage)
         data = {'page_type': ct.id}
-        response = self.client.get('/admin/csv-import/export_to_file/', data)
+        response = self.client.get('/admin/csv/export-to-file/', data)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, b'<form action="/admin/csv-import/export_to_file/" method="GET"')
-        self.assertContains(response, b'<form action="/admin/csv-import/export_to_file/" method="POST"')
+        self.assertContains(response, b'<form action="/admin/csv/export-to-file/" method="GET"')
+        self.assertContains(response, b'<form action="/admin/csv/export-to-file/" method="POST"')
         # response should contain the exportable fields for SimplePage
         self.assertContains(response, b'<input type="checkbox" name="fields" value="id" id="id_fields_0" checked>')
         self.assertContains(response, b'<input type="checkbox" name="fields" value="content_type" id="id_fields_1" checked>')
@@ -114,7 +114,7 @@ class ExportViewTests(TestCase):
             'page_type': page.content_type_id,
             'root_page': home.pk,
         }
-        response = self.client.post('/admin/csv-import/export_to_file/', data)
+        response = self.client.post('/admin/csv/export-to-file/', data)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.streaming)
         full_response = io.BytesIO(b''.join(response.streaming_content))
@@ -136,7 +136,7 @@ class ExportViewTests(TestCase):
             'page_type': page.content_type_id,
             'root_page': page.pk,
         }
-        response = self.client.post('/admin/csv-import/export_to_file/', data)
+        response = self.client.post('/admin/csv/export-to-file/', data)
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.streaming)
         full_response = io.BytesIO(b''.join(response.streaming_content))

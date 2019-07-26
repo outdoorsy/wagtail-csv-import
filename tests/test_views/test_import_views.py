@@ -17,18 +17,18 @@ class ImportViewTests(TestCase):
         data = {
             'page_type': 4242,
         }
-        response = self.client.post('/admin/csv-import/import_from_file/', data)
+        response = self.client.post('/admin/csv/import-from-file/', data)
         self.assertContains(response, b'Select a valid choice. 4242 is not one of the available choices.')
         self.assertEqual(response.status_code, 200)
 
     def test_import_get(self):
-        response = self.client.get('/admin/csv-import/import_from_file/')
+        response = self.client.get('/admin/csv/import-from-file/')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '<form action="/admin/csv-import/import_from_file/" method="GET"')
+        self.assertContains(response, '<form action="/admin/csv/import-from-file/" method="GET"')
         self.assertContains(response, '<option value="1">Page</option>')
         self.assertContains(response, '<option value="6">Simple page</option>')
         self.assertContains(response, '<option value="7">M2M page</option>')
-        self.assertContains(response, '<form action="/admin/csv-import/import_from_file/" enctype="multipart/form-data" method="POST"')
+        self.assertContains(response, '<form action="/admin/csv/import-from-file/" enctype="multipart/form-data" method="POST"')
         self.assertContains(response, '<input type="file" name="file"')
         # check explanations
         self.assertContains(response, 'These are all the fields accepted in the CSV header: <pre>id,content_type,parent,title,slug,full_url,live,draft_title,expire_at,expired,first_published_at,go_live_at,has_unpublished_changes,last_published_at,latest_revision_created_at,live_revision,locked,owner,search_description,seo_title,show_in_menus</pre>')
@@ -54,7 +54,7 @@ class ImportViewTests(TestCase):
             'file': csv_file,
             'page_type': ContentType.objects.get_for_model(SimplePage).pk,
         }
-        response = self.client.post('/admin/csv-import/import_from_file/', data)
+        response = self.client.post('/admin/csv/import-from-file/', data)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Created page New Page')
         self.assertContains(response, 'Updated page Updated Existing Page')
@@ -75,6 +75,6 @@ class ImportViewTests(TestCase):
             'file': wrong_file,
             'page_type': ContentType.objects.get_for_model(SimplePage).pk,
         }
-        response = self.client.post('/admin/csv-import/import_from_file/', data)
+        response = self.client.post('/admin/csv/import-from-file/', data)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Error decoding file, make sure it&#39;s an UTF-8 encoded CSV file')

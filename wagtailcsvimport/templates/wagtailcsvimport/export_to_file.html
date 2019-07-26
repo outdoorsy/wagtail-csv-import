@@ -9,7 +9,7 @@
     {% include "wagtailadmin/shared/header.html" with title=title_str icon="download" %}
 
     <div class="nice-padding">
-        <form action="{% url 'wagtailcsvimport_admin:export_to_file' %}" method="GET" novalidate>
+        <form action="{% url 'wagtailcsvimport:export_to_file' %}" method="GET" novalidate>
             <ul class="fields">
                 {% for field in page_type_form %}
                     {% include "wagtailadmin/shared/field_as_li.html" %}
@@ -17,7 +17,7 @@
             </ul>
         </form>
         {% if export_form %}
-        <form action="{% url 'wagtailcsvimport_admin:export_to_file' %}" method="POST" novalidate>
+        <form action="{% url 'wagtailcsvimport:export_to_file' %}" method="POST" novalidate>
             {% csrf_token %}
             <ul class="fields">
                 {% for field in page_type_form %}

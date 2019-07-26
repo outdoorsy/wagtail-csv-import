@@ -6,10 +6,10 @@ from . import views
 
 app_name = 'wagtailcsvimport'
 urlpatterns = [
-    url(r'^export/(?P<page_id>\d+)/$', views.export, {'only_published': True}, name='export'),
+    url(r'^export/(?P<page_id>\d+)/$', views.export, {'only_published': True}, name='export_page'),
 ]
 
 if getattr(settings, "WAGTAILCSVIMPORT_EXPORT_UNPUBLISHED", False):
     urlpatterns += urlpatterns + [
-        url(r'^export/(?P<page_id>\d+)/all/$', views.export, {'only_published': False}, name='export'),
+        url(r'^export/(?P<page_id>\d+)/all/$', views.export, {'only_published': False}, name='export_page'),
     ]

@@ -15,17 +15,31 @@ from . import admin_urls
 @hooks.register('register_admin_urls')
 def register_admin_urls():
     return [
-        url(r'^csv-import/', include(admin_urls, namespace='wagtailcsvimport_admin')),
+        url(r'^csv/', include(admin_urls, namespace='wagtailcsvimport')),
     ]
 
 
+class CsvExportMenuItem(MenuItem):
+
+    def is_shown(self, request):
+        return request.user.is_superuser
+
+
 class CsvImportMenuItem(MenuItem):
+
     def is_shown(self, request):
         return request.user.is_superuser
 
 
 @hooks.register('register_admin_menu_item')
-def register_csv_import_menu_item():
+def register__import_menu_item():
     return CsvImportMenuItem(
-        _('CSV Import'), reverse('wagtailcsvimport_admin:index'), classnames='icon icon-download', order=800
+        _('CSV Export'), reverse('wagtailcsvimport:export_to_file'), classnames='icon icon-collapse-down', order=898
+    )
+
+
+@hooks.register('register_admin_menu_item')
+def register__import_menu_item():
+    return CsvImportMenuItem(
+        _('CSV Import'), reverse('wagtailcsvimport:import_from_file'), classnames='icon icon-collapse-up', order=899
     )
