@@ -174,17 +174,6 @@ def check_csv_header(header_row, page_model, form_class):
             'field_list': sorted(unrecognized_fields)
         }
 
-    # check all required fields are accounted for
-    required_fields = set()
-    for field_name, field in form_class.base_fields.items():
-        if field.required:
-            required_fields.add(field_name)
-    missing_required_fields = required_fields - header_fields
-    if missing_required_fields:
-        return _('Missing the following required fields: %(field_list)s') % {
-            'field_list': sorted(missing_required_fields)
-        }
-
 
 class CSVM2MField(forms.ModelMultipleChoiceField):
     """Field to process M2M fields with comma-separated values

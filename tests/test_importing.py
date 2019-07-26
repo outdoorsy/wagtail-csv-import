@@ -16,17 +16,6 @@ from tests.models import SimplePage
 class ImportingTests(TestCase):
     fixtures = ['testdata.json']
 
-    def test_create_error_missing_required_fields_in_header(self):
-        csv_data = StringIO(
-            'id,parent\r\n'
-        )
-        successes, errors = import_pages(csv_data, SimplePage)
-        self.assertEqual(successes, [])
-        self.assertEqual(
-            [repr(e) for e in errors],
-            ["Error(Error in CSV header: Missing fields: "]
-        )
-
     def test_create_cannot_set_excluded_fields(self):
         csv_data = StringIO(
             'id,parent,title,content_type,depth,numchild,page_ptr,path,url_path,int_field\r\n'
