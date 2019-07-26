@@ -2,13 +2,10 @@
 from io import BytesIO
 from io import StringIO
 
-from django.contrib.auth.models import User
-from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 import pytz
 
 from wagtail.core.models import Page
-from wagtail.core.models import Site
 
 from wagtailcsvimport.importing import import_pages
 

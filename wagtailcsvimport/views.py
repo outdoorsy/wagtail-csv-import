@@ -1,15 +1,11 @@
-from pprint import pprint
 from django.http import Http404
 from django.http import StreamingHttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 from django.utils.timezone import get_current_timezone_name
-from django.utils.translation import ungettext, ugettext_lazy as _
 
 try:
-    from wagtail.admin import messages
     from wagtail.core.models import Page
 except ImportError:  # fallback for Wagtail <2.0
-    from wagtail.wagtailadmin import messages
     from wagtail.wagtailcore.models import Page
 
 from .exporting import export_pages

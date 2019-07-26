@@ -2,7 +2,6 @@ import csv
 import logging
 
 from django import forms
-from django.conf import settings
 from django.core.exceptions import FieldError
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -240,8 +239,6 @@ class PageModelForm(forms.ModelForm):
         return value
 
     def save(self, commit=True):
-        previously_live = self.instance.live
-
         if self.instance.pk:
             # update existing instance
             page = super().save(commit=True)

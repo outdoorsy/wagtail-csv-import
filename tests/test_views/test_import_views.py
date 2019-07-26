@@ -1,12 +1,9 @@
-import io
-
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
 from wagtail.core.models import Page
 
-from tests.models import M2MPage
 from tests.models import SimplePage
 
 

@@ -5,10 +5,8 @@ from itertools import chain
 import logging
 
 try:
-    from wagtail.core.models import get_page_models
     from wagtail.core.models import Page
 except ImportError:  # fallback for Wagtail <2.0
-    from wagtail.wagtailcore.models import get_page_models
     from wagtail.wagtailcore.models import Page
 
 
@@ -44,13 +42,14 @@ def get_exportable_fields_for_model(page_model):
             fields.append(f.name)
     # fields that don't exist on DB
     fields.extend(GENERATED_FIELDS['__all__'].keys())
+
     # sort fields, put common ones first, then the rest alphabetically
-    fields.sort()
     def field_sort(item):
         try:
             return BASE_FIELDS_ORDER.index(item)
         except ValueError:
             return len(BASE_FIELDS_ORDER)
+    fields.sort()
     fields.sort(key=field_sort)
     return fields
 
