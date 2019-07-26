@@ -50,8 +50,9 @@ def import_from_file(request):
             page_model = page_type_form.get_page_model()
             import_form = ImportForm(request.POST, request.FILES)
             if import_form.is_valid():
+                uploaded_file = import_form.cleaned_data['file']
                 try:
-                    csv_file = import_form.cleaned_data['file'].read().decode('utf-8')
+                    csv_file = uploaded_file.read().decode('utf-8')
                 except UnicodeDecodeError as e:
                     errors.append(Error(_("Error decoding file, make sure it's an UTF-8 encoded CSV file"), e))
                 else:
@@ -60,6 +61,7 @@ def import_from_file(request):
                     'request': request,
                     'successes': successes,
                     'errors': errors,
+                    'filename': uploaded_file.name,
                 })
 
     if page_model:
