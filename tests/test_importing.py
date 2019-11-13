@@ -259,6 +259,38 @@ class ImportingTests(TestCase):
             ["Error(Errors processing row number 1: {'parent': [ValidationError(['Cannot change parent page, moving pages is not yet supported.'])]})"]
         )
 
+    def test_update_wont_publish_or_unpublish_if_live_column_is_missing(self):
+        live_page = Page(
+            title='Live Page',
+            live=True
+        )
+        draft_page = Page(
+            title='Draft Page',
+            live=False
+        )
+        home = Page.objects.get(slug='home')
+        home.add_child(instance=live_page)
+        home.add_child(instance=draft_page)
+
+        csv_data = StringIO(
+            'id,title\r\n'
+            f'3,Updated Live Page\r\n'
+            f'4,Updated Draft Page\r\n'
+        )
+        successes, errors = import_pages(csv_data, Page)
+        self.assertEqual(successes, [
+            'Updated page Updated Live Page with id 3',
+            'Updated page Updated Draft Page with id 4',
+        ])
+        self.assertEqual(errors, [])
+
+        live_page.refresh_from_db()
+        self.assertEqual(live_page.title, 'Updated Live Page')
+        self.assertTrue(live_page.live)
+        draft_page.refresh_from_db()
+        self.assertEqual(draft_page.title, 'Updated Draft Page')
+        self.assertFalse(draft_page.live)
+
     def test_update_simple_page(self):
         page = SimplePage(
             title='Test Page',

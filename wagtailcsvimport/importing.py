@@ -198,7 +198,11 @@ class PageModelForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance.pk:
+        if self.instance.pk is None:
+            # Page.live defaults True, but we want to create pages in draft
+            # unless live is purposefully set to True
+            self.instance.live = False
+        else:
             # parent is not necessary when updating an instance
             self.fields['parent'].required = False
 
@@ -213,15 +217,18 @@ class PageModelForm(forms.ModelForm):
             })
 
     def clean_live(self):
-        # live field is not going to be manipulated directly, instead
-        # it's used to decide whether the page instance needs to be
-        # published (if it weren't and now live is True) or
-        # unpublished (if it was and now live is False)
-        previously_live = self.instance.pk and self.instance.live
-        if previously_live and self.cleaned_data['live'] is False:
-            self.cleaned_data['_unpublish_page'] = True
-        elif not previously_live and self.cleaned_data['live'] is True:
-            self.cleaned_data['_publish_page'] = True
+        # live field is not going to be manipulated directly, instead it's used
+        # to decide whether the page instance needs to be published (if it
+        # weren't and now live is True) or unpublished (if it was and now live
+        # is False).
+        if self.instance.pk:
+            # only care about updates, created pages take the value of the live
+            # field directly
+            if self.instance.live and 'live' in self.data and self.cleaned_data['live'] is False:
+                self.cleaned_data['_unpublish_page'] = True
+            elif not self.instance.live and 'live' in self.data and self.cleaned_data['live'] is True:
+                self.cleaned_data['_publish_page'] = True
+        return self.cleaned_data['live']
 
     def clean_parent(self):
         # TODO: add support to update parent of existing pages,
@@ -242,22 +249,23 @@ class PageModelForm(forms.ModelForm):
             # update existing instance
             page = super().save(commit=True)
             # TODO: move page if parent value has changed
+            # Handle publishing/unpublishing the page depending on the
+            # live field. Freshly created pages don't need a revision,
+            # their live field is set to the desired value.
+            if self.cleaned_data.get('_publish_page'):
+                rev = page.save_revision()
+                rev.publish()
+            elif self.cleaned_data.get('_unpublish_page'):
+                page.unpublish()
         else:
             # create new page under the given parent
             page = super().save(commit=False)
-            page.live = False
+            # live is not an editable field, so it's not set by
+            # construct_instance on ModelForm._post_clean call
+            page.live = self.cleaned_data['live']
             parent = self.cleaned_data['parent']
             parent.add_child(instance=page)
             self.save_m2m()
-
-        # Handle publishing/unpublishing the page depending on the
-        # live field. If the page was just created, we handle it like
-        # it was previously on draft
-        if self.cleaned_data.get('_publish_page'):
-            rev = page.save_revision()
-            rev.publish()
-        elif self.cleaned_data.get('_unpublish_page'):
-            page.unpublish()
 
         return page
 
