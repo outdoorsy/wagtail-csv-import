@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='wagtail-csv-import',
-    version='0.3',
+    version='0.3.1',
     description="Page import from CSV file",
     author='Outdoorsy.com',
     author_email='joe@outdoorsy.com',
