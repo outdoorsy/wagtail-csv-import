@@ -2,6 +2,7 @@ from functools import lru_cache
 
 from django import forms
 from django.forms import Media
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import ugettext_lazy as _
 
@@ -16,6 +17,13 @@ except ImportError:  # fallback for Wagtail <2.0
 
 
 from .exporting import get_exportable_fields_for_model
+from django.apps import apps
+
+
+def get_models():
+    page_models = get_page_models()
+    settings_models = [apps.get_model(x) for x in settings.WAGTAILCSVIMPORT_MODELS]
+    return [*page_models, *settings_models]
 
 
 class PageTypeForm(forms.Form):
@@ -34,7 +42,7 @@ class PageTypeForm(forms.Form):
     @staticmethod
     def get_page_type_choices():
         choices = []
-        for m in get_page_models():
+        for m in get_models():
             choice = (ContentType.objects.get_for_model(m).id, m.get_verbose_name())
             if m is Page:
                 page_choice = choice
