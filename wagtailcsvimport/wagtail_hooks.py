@@ -33,13 +33,13 @@ class CsvImportMenuItem(MenuItem):
 
 @hooks.register('register_admin_menu_item')
 def register__import_menu_item():
-    return CsvImportMenuItem(
+    return MenuItem(
         _('CSV Export'), reverse('wagtailcsvimport:export_to_file'), classnames='icon icon-collapse-down', order=898
     )
 
 
 @hooks.register('register_admin_menu_item')
 def register__import_menu_item():
-    return CsvImportMenuItem(
+    return MenuItem(
         _('CSV Import'), reverse('wagtailcsvimport:import_from_file'), classnames='icon icon-collapse-up', order=899
     )

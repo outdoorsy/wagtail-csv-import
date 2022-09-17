@@ -17,11 +17,17 @@ logger = logging.getLogger(__name__)
 # Put these fields first, in this order
 BASE_FIELDS_ORDER = ('id', 'content_type', 'parent', 'title', 'slug', 'full_url', 'live')
 
+def get_content_type(page):
+    if getattr(page, "content_type", None):
+        return f'{page.content_type.app_label}.{page.content_type.model}'
+    return ""
+
+
 # Fields in Wagtail's Page model to export by default
 GENERATED_FIELDS = {
     '__all__': {
-        'content_type': lambda page: f'{page.content_type.app_label}.{page.content_type.model}',
-        'full_url': lambda page: page.full_url,
+        'content_type': get_content_type,
+        'full_url': lambda page: getattr(page, "full_url", ""),
         'parent': lambda page: getattr(page.get_parent(), 'pk'),
     },
     # TODO: support 'model': function()
@@ -90,12 +96,14 @@ def export_pages(root_page, content_type=None, fieldnames=None,
     else:
         page_model = Page
 
-    pages = page_model.objects.descendant_of(root_page, inclusive=True)\
-                              .order_by('depth', 'path')
-    if content_type:
-        pages = pages.filter(content_type=content_type)
-    if only_published:
-        pages = pages.live()
+    if getattr(page_model.objects, "descendant_of", None):
+        pages = page_model.objects.descendant_of(root_page, inclusive=True).order_by('depth', 'path')
+        if content_type:
+            pages = pages.filter(content_type=content_type)
+        if only_published:
+            pages = pages.live()
+    else:
+        pages = page_model.objects.all()
 
     # Don't write to a file or even a StringIO, as that would consume
     # memory unnecessarily. We will be yielding CSV rows one by one as
